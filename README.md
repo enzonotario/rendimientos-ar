@@ -74,11 +74,7 @@ npm start
    - **data912** `/live/arg_cedears` → precio del CEDEAR en ARS
    - **data912** `/live/ccl` → CCL de referencia (mediana top-10 por volumen)
    - **Yahoo Finance** v8/chart → precio del subyacente en USD (cache 5min)
-2. El **ratio de conversión** se auto-deriva:
-   ```
-   ratio = round((ccl_referencia × precio_usd) / precio_cedear)
-   ```
-   Esto evita mantener ratios manuales que se desactualizan con stock splits.
+2. Los **ratios de conversión** (271 CEDEARs) están hardcodeados en `config.json`. Se actualizan manualmente cuando hay stock splits.
 3. El **CCL implícito** se calcula:
    ```
    CCL = (precio_cedear × ratio) / precio_usd
