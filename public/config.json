@@ -363,6 +363,10 @@
         "ratio": 0.3333,
         "nombre": "ABEV"
       },
+      "ABEV3": {
+        "ratio": 1,
+        "nombre": "Ambev BR"
+      },
       "ABNB": {
         "ratio": 15,
         "nombre": "Airbnb"
@@ -427,6 +431,10 @@
         "ratio": 0.5,
         "nombre": "ARCO"
       },
+      "ARKK": {
+        "ratio": 10,
+        "nombre": "ARK Innovation ETF"
+      },
       "ARM": {
         "ratio": 27,
         "nombre": "ARM Holdings"
@@ -459,9 +467,17 @@
         "ratio": 3,
         "nombre": "BlackBerry"
       },
+      "BBAS3": {
+        "ratio": 2,
+        "nombre": "Banco do Brasil"
+      },
       "BBD": {
         "ratio": 1,
         "nombre": "Bradesco"
+      },
+      "BBDC3": {
+        "ratio": 1,
+        "nombre": "Bradesco BR"
       },
       "BCS": {
         "ratio": 1,
@@ -483,6 +499,10 @@
         "ratio": 1,
         "nombre": "Bioceres"
       },
+      "BITF": {
+        "ratio": 0.2,
+        "nombre": "Bitfarms"
+      },
       "BK": {
         "ratio": 19,
         "nombre": "BNY Mellon"
@@ -502,6 +522,10 @@
       "BP": {
         "ratio": 5,
         "nombre": "BP"
+      },
+      "BPA11": {
+        "ratio": 1,
+        "nombre": "BTG Pactual"
       },
       "BSBR": {
         "ratio": 1,
@@ -531,6 +555,10 @@
         "ratio": 1,
         "nombre": "Coeur Mining"
       },
+      "CIBR": {
+        "ratio": 10,
+        "nombre": "First Trust Cybersecurity"
+      },
       "CL": {
         "ratio": 3,
         "nombre": "Colgate"
@@ -550,6 +578,10 @@
       "CSCO": {
         "ratio": 5,
         "nombre": "Cisco"
+      },
+      "CSNA3": {
+        "ratio": 1,
+        "nombre": "CSN BR"
       },
       "CVS": {
         "ratio": 15,
@@ -583,6 +615,10 @@
         "ratio": 54,
         "nombre": "Danaher"
       },
+      "DIA": {
+        "ratio": 20,
+        "nombre": "SPDR Dow Jones"
+      },
       "DOW": {
         "ratio": 6,
         "nombre": "Dow Inc"
@@ -599,6 +635,10 @@
         "ratio": 2,
         "nombre": "eBay"
       },
+      "EEM": {
+        "ratio": 5,
+        "nombre": "iShares EM"
+      },
       "EFX": {
         "ratio": 4,
         "nombre": "Equifax"
@@ -611,8 +651,16 @@
         "ratio": 20,
         "nombre": "Ericsson"
       },
+      "ETHA": {
+        "ratio": 5,
+        "nombre": "iShares Ethereum"
+      },
+      "EWZ": {
+        "ratio": 2,
+        "nombre": "iShares Brazil"
+      },
       "F": {
-        "ratio": 6,
+        "ratio": 1,
         "nombre": "Ford"
       },
       "FCX": {
@@ -647,6 +695,10 @@
         "ratio": 1,
         "nombre": "Gilead Sciences"
       },
+      "GLD": {
+        "ratio": 50,
+        "nombre": "SPDR Gold"
+      },
       "GLOB": {
         "ratio": 14,
         "nombre": "Globant"
@@ -674,6 +726,10 @@
       "GT": {
         "ratio": 18,
         "nombre": "Goodyear"
+      },
+      "HAPV3": {
+        "ratio": 1,
+        "nombre": "Hapvida"
       },
       "HD": {
         "ratio": 18,
@@ -715,6 +771,10 @@
         "ratio": 28,
         "nombre": "Hershey"
       },
+      "HUT": {
+        "ratio": 0.2,
+        "nombre": "Hut 8"
+      },
       "HWM": {
         "ratio": 1,
         "nombre": "Howmet Aerospace"
@@ -751,9 +811,21 @@
         "ratio": 90,
         "nombre": "Intuitive Surgical"
       },
+      "ITA": {
+        "ratio": 50,
+        "nombre": "iShares US Aerospace"
+      },
       "ITUB": {
         "ratio": 1,
         "nombre": "Itaú Unibanco"
+      },
+      "ITUB3": {
+        "ratio": 1,
+        "nombre": "Itaú BR"
+      },
+      "IWM": {
+        "ratio": 10,
+        "nombre": "iShares Russell 2000"
       },
       "JCI": {
         "ratio": 2,
@@ -815,6 +887,10 @@
         "ratio": 1,
         "nombre": "Lam Research"
       },
+      "LREN3": {
+        "ratio": 1,
+        "nombre": "Lojas Renner"
+      },
       "LVS": {
         "ratio": 1,
         "nombre": "Las Vegas Sands"
@@ -847,6 +923,10 @@
         "ratio": 19,
         "nombre": "Mizuho"
       },
+      "MGLU3": {
+        "ratio": 1,
+        "nombre": "Magazine Luiza"
+      },
       "MMM": {
         "ratio": 10,
         "nombre": "3M"
@@ -856,7 +936,7 @@
         "nombre": "Altria"
       },
       "MOS": {
-        "ratio": 46,
+        "ratio": 5,
         "nombre": "Mosaic"
       },
       "MRK": {
@@ -880,11 +960,11 @@
         "nombre": "Motorola Solutions"
       },
       "MSTR": {
-        "ratio": 1,
+        "ratio": 20,
         "nombre": "MicroStrategy"
       },
       "MU": {
-        "ratio": 20,
+        "ratio": 5,
         "nombre": "Micron"
       },
       "MUFG": {
@@ -894,6 +974,10 @@
       "MUX": {
         "ratio": 120,
         "nombre": "McEwen Mining"
+      },
+      "NATU3": {
+        "ratio": 1,
+        "nombre": "Natura"
       },
       "NEM": {
         "ratio": 12,
@@ -952,7 +1036,7 @@
         "nombre": "O'Reilly Auto"
       },
       "OXY": {
-        "ratio": 3,
+        "ratio": 5,
         "nombre": "Occidental"
       },
       "PAC": {
@@ -964,7 +1048,7 @@
         "nombre": "PagSeguro"
       },
       "PANW": {
-        "ratio": 2,
+        "ratio": 50,
         "nombre": "Palo Alto Networks"
       },
       "PBI": {
@@ -982,6 +1066,10 @@
       "PEP": {
         "ratio": 1,
         "nombre": "PepsiCo"
+      },
+      "PETR3": {
+        "ratio": 1,
+        "nombre": "Petrobras BR"
       },
       "PFE": {
         "ratio": 6,
@@ -1007,6 +1095,10 @@
         "ratio": 7,
         "nombre": "Philip Morris"
       },
+      "PRIO3": {
+        "ratio": 2,
+        "nombre": "PRIO"
+      },
       "PSX": {
         "ratio": 1,
         "nombre": "Phillips 66"
@@ -1019,13 +1111,21 @@
         "ratio": 2,
         "nombre": "Qualcomm"
       },
+      "QQQ": {
+        "ratio": 20,
+        "nombre": "Nasdaq 100 ETF"
+      },
       "RACE": {
         "ratio": 10,
         "nombre": "Ferrari"
       },
       "RBLX": {
-        "ratio": 13,
+        "ratio": 2,
         "nombre": "Roblox"
+      },
+      "RENT3": {
+        "ratio": 2,
+        "nombre": "Localiza"
       },
       "RIO": {
         "ratio": 29,
@@ -1056,11 +1156,15 @@
         "nombre": "SAP"
       },
       "SATL": {
-        "ratio": 32,
+        "ratio": 1,
         "nombre": "Satellogic"
       },
       "SBS": {
         "ratio": 0.5,
+        "nombre": "Sabesp"
+      },
+      "SBSP3": {
+        "ratio": 1,
         "nombre": "Sabesp"
       },
       "SBUX": {
@@ -1079,9 +1183,17 @@
         "ratio": 0.5,
         "nombre": "Sea Ltd"
       },
+      "SH": {
+        "ratio": 8,
+        "nombre": "ProShares Short S&P"
+      },
       "SHEL": {
         "ratio": 18,
         "nombre": "Shell"
+      },
+      "SI": {
+        "ratio": 10,
+        "nombre": "Silvergate"
       },
       "SID": {
         "ratio": 0.125,
@@ -1090,6 +1202,10 @@
       "SLB": {
         "ratio": 172,
         "nombre": "Schlumberger"
+      },
+      "SMH": {
+        "ratio": 50,
+        "nombre": "VanEck Semiconductor"
       },
       "SNA": {
         "ratio": 8,
@@ -1115,6 +1231,14 @@
         "ratio": 14,
         "nombre": "S&P Global"
       },
+      "SPXL": {
+        "ratio": 25,
+        "nombre": "Direxion Bull 3X"
+      },
+      "SPY": {
+        "ratio": 20,
+        "nombre": "S&P 500 ETF"
+      },
       "STLA": {
         "ratio": 2,
         "nombre": "Stellantis"
@@ -1126,6 +1250,10 @@
       "SUZ": {
         "ratio": 8,
         "nombre": "Suzano"
+      },
+      "SUZB3": {
+        "ratio": 1,
+        "nombre": "Suzano BR"
       },
       "SWKS": {
         "ratio": 6,
@@ -1151,6 +1279,10 @@
         "ratio": 22,
         "nombre": "TIMB"
       },
+      "TIMS3": {
+        "ratio": 1,
+        "nombre": "Tim SA"
+      },
       "TJX": {
         "ratio": 3,
         "nombre": "TJX"
@@ -1166,6 +1298,10 @@
       "TMUS": {
         "ratio": 15,
         "nombre": "T-Mobile"
+      },
+      "TQQQ": {
+        "ratio": 25,
+        "nombre": "ProShares UltraPro QQQ"
       },
       "TRIP": {
         "ratio": 2,
@@ -1196,11 +1332,11 @@
         "nombre": "Texas Instruments"
       },
       "UAL": {
-        "ratio": 33,
+        "ratio": 5,
         "nombre": "United Airlines"
       },
       "UBER": {
-        "ratio": 1,
+        "ratio": 2,
         "nombre": "Uber"
       },
       "UGP": {
@@ -1216,8 +1352,12 @@
         "nombre": "UnitedHealth"
       },
       "UPST": {
-        "ratio": 15,
+        "ratio": 5,
         "nombre": "Upstart"
+      },
+      "URA": {
+        "ratio": 5,
+        "nombre": "Global X Uranium"
       },
       "URBN": {
         "ratio": 2,
@@ -1235,6 +1375,10 @@
         "ratio": 10,
         "nombre": "Vale"
       },
+      "VALE3": {
+        "ratio": 1,
+        "nombre": "Vale BR"
+      },
       "VIST": {
         "ratio": 1,
         "nombre": "Vista Energy"
@@ -1242,6 +1386,10 @@
       "VIV": {
         "ratio": 12,
         "nombre": "Telefonica Brasil ADR"
+      },
+      "VIVT3": {
+        "ratio": 1,
+        "nombre": "Telefonica Brasil"
       },
       "VOD": {
         "ratio": 18,
@@ -1251,9 +1399,17 @@
         "ratio": 101,
         "nombre": "VeriSign"
       },
+      "VXX": {
+        "ratio": 5,
+        "nombre": "iPath VIX"
+      },
       "VZ": {
         "ratio": 0.5,
         "nombre": "Verizon"
+      },
+      "WEGE3": {
+        "ratio": 1,
+        "nombre": "WEG"
       },
       "WFC": {
         "ratio": 4,
@@ -1262,6 +1418,18 @@
       "WMT": {
         "ratio": 6,
         "nombre": "Walmart"
+      },
+      "XLE": {
+        "ratio": 2,
+        "nombre": "Energy Select SPDR"
+      },
+      "XLF": {
+        "ratio": 2,
+        "nombre": "Financial Select SPDR"
+      },
+      "XLU": {
+        "ratio": 15,
+        "nombre": "Utilities SPDR"
       },
       "XOM": {
         "ratio": 16,

@@ -94,73 +94,43 @@ app.get('/api/cafci/ficha/:fondoId/:claseId', async (req, res) => {
   }
 });
 
-// --- LECAP/BONCAP Prices (BYMA proxy) ---
+// --- LECAP/BONCAP Prices (data912 proxy) ---
 
 app.get('/api/lecaps', async (req, res) => {
-  const https = require('https');
   try {
-    const data = await new Promise((resolve, reject) => {
-      const body = '{}';
-      const options = {
-        hostname: 'open.bymadata.com.ar',
-        path: '/vanoms-be-core/rest/api/bymadata/free/lebacs',
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) },
-        rejectUnauthorized: false,
-      };
-      const r = https.request(options, (resp) => {
-        let d = '';
-        resp.on('data', chunk => d += chunk);
-        resp.on('end', () => { try { resolve(JSON.parse(d)); } catch(e) { reject(e); } });
-      });
-      r.on('error', reject);
-      r.write(body);
-      r.end();
-    });
-
+    const [notes, bonds] = await Promise.all([
+      fetch('https://data912.com/live/arg_notes').then(r => r.json()),
+      fetch('https://data912.com/live/arg_bonds').then(r => r.json()),
+    ]);
+    const LECAP_TICKERS = ['S17A6','S30A6','S15Y6','S29Y6','S31L6','S31G6','S30S6','S30O6','S30N6'];
+    const BONCAP_TICKERS = ['T30J6','T15E7','T30A7','T31Y7','T30J7'];
     const result = [];
-    for (const item of (data.data || [])) {
-      if (item.settlementType !== '2') continue;
-      const trade = parseFloat(item.trade) || 0;
-      const close = parseFloat(item.closingPrice) || 0;
-      const price = trade > 0 ? trade : close;
-      if (price <= 0) continue;
-      result.push({ symbol: item.symbol, price, offer, bid: parseFloat(item.bidPrice) || 0, close, trade: parseFloat(item.trade) || 0, maturityDate: item.maturityDate, daysToMaturity: item.daysToMaturity });
+    for (const item of notes) {
+      if (!LECAP_TICKERS.includes(item.symbol)) continue;
+      if (parseFloat(item.c) <= 0) continue;
+      result.push({ symbol: item.symbol, price: item.c, bid: item.px_bid || 0, ask: item.px_ask || 0, type: 'LECAP' });
     }
-    res.json({ data: result });
+    for (const item of bonds) {
+      if (!BONCAP_TICKERS.includes(item.symbol)) continue;
+      if (parseFloat(item.c) <= 0) continue;
+      result.push({ symbol: item.symbol, price: item.c, bid: item.px_bid || 0, ask: item.px_ask || 0, type: 'BONCAP' });
+    }
+    res.json({ data: result, source: 'data912' });
   } catch (err) {
-    console.error('BYMA proxy error:', err.message);
-    res.status(502).json({ error: 'Failed to fetch BYMA data' });
+    console.error('LECAP proxy error:', err.message);
+    res.status(502).json({ error: 'Failed to fetch LECAP data' });
   }
 });
 
-// --- CEDEAR Arbitrage (data912 proxy) ---
+// --- CEDEAR Arbitrage (data912 + Yahoo Finance) ---
+// In local dev, proxies to the Netlify function in production
+// Full logic (Yahoo Finance batch + auto-derived ratios) runs in the Netlify function
 
 app.get('/api/cedears', async (req, res) => {
   try {
-    const [cedears, ccl] = await Promise.all([
-      fetch('https://data912.com/live/arg_cedears').then(r => r.json()),
-      fetch('https://data912.com/live/ccl').then(r => r.json()),
-    ]);
-    const cedearPrices = {};
-    for (const c of cedears) {
-      if (c.c > 0) cedearPrices[c.symbol] = { price: c.c, bid: c.px_bid || 0, ask: c.px_ask || 0, volume: c.v || 0, pct_change: c.pct_change || 0 };
-    }
-    const result = [];
-    for (const item of ccl) {
-      const sym = item.ticker_usa;
-      const symAr = item.ticker_ar;
-      const cclMark = parseFloat(item.CCL_mark) || 0;
-      if (cclMark <= 0) continue;
-      const cedear = cedearPrices[symAr] || cedearPrices[sym];
-      if (!cedear) continue;
-      result.push({ symbol: sym, ticker_ar: symAr, cedear_price: cedear.price, ccl_implicit: cclMark, ccl_bid: parseFloat(item.CCL_bid) || 0, ccl_ask: parseFloat(item.CCL_ask) || 0, volume: cedear.volume, ars_volume: parseFloat(item.ars_volume) || 0, pct_change: cedear.pct_change, arg_panel: item.arg_panel, usa_panel: item.usa_panel });
-    }
-    const sorted = [...result].sort((a, b) => b.ars_volume - a.ars_volume);
-    const top10 = sorted.slice(0, 10).map(x => x.ccl_implicit).sort((a, b) => a - b);
-    const mid = Math.floor(top10.length / 2);
-    const cclRef = top10.length % 2 === 0 ? (top10[mid - 1] + top10[mid]) / 2 : top10[mid];
-    res.json({ data: result, ccl_reference: cclRef, source: 'data912' });
+    // In local dev, proxy to production Netlify function
+    const data = await fetch('https://rendimientos.co/api/cedears').then(r => r.json());
+    res.json(data);
   } catch (err) {
     console.error('CEDEAR proxy error:', err.message);
     res.status(502).json({ error: 'Failed to fetch CEDEAR data' });
