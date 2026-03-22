@@ -180,6 +180,102 @@ body {
   white-space: nowrap;
 }
 
+/* LECAP Table */
+.lecap-table-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.lecap-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+  white-space: nowrap;
+  table-layout: fixed;
+}
+.lecap-table thead {
+  background: var(--accent);
+  color: #fff;
+}
+.lecap-table th {
+  padding: 10px 14px;
+  font-weight: 600;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+.lecap-table th:first-child { text-align: left; }
+.lecap-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: right;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.lecap-table td:first-child {
+  text-align: left;
+  font-weight: 600;
+}
+/* Column widths */
+.lecap-table .col-ticker { width: 22%; }
+.lecap-table .col-precio { width: 12%; }
+.lecap-table .col-pago { width: 14%; }
+.lecap-table .col-dias { width: 9%; }
+.lecap-table .col-vto { width: 15%; }
+.lecap-table .col-tna { width: 14%; }
+.lecap-table .col-tir { width: 14%; }
+.lecap-table tbody tr {
+  background: var(--card-bg);
+}
+.lecap-table tbody tr:hover {
+  background: var(--bg-subtle);
+}
+.lecap-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.lecap-table .lecap-ticker {
+  font-weight: 700;
+  color: var(--accent);
+}
+.lecap-table .lecap-tir {
+  font-weight: 700;
+  color: var(--green);
+}
+.lecap-table .lecap-tna {
+  font-weight: 600;
+}
+.lecap-type-badge {
+  display: inline-block;
+  font-size: 0.6rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+.lecap-type-badge.lecap { background: #d1fae5; color: #065f46; }
+.lecap-type-badge.boncap { background: #dbeafe; color: #1e40af; }
+[data-theme="dark"] .lecap-type-badge.lecap { background: #064e3b; color: #6ee7b7; }
+[data-theme="dark"] .lecap-type-badge.boncap { background: #1e3a5f; color: #93bbfd; }
+.lecap-table .highlighted-row td {
+  background: rgba(59, 130, 246, 0.06);
+}
+[data-theme="dark"] .lecap-table .highlighted-row td {
+  background: rgba(59, 130, 246, 0.1);
+}
+
+/* Scatter Plot */
+.scatter-plot {
+  position: relative;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-top: 8px;
+  height: 420px;
+}
+
 .admin-link {
   font-size: 0.72rem;
   color: var(--text-tertiary);

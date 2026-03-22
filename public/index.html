@@ -56,6 +56,7 @@
     <div class="subnav-inner" role="tablist" aria-label="Tipo de inversión">
       <a href="#" class="subnav-tab active" data-tab="billeteras" role="tab" id="tab-billeteras-tab" aria-selected="true" aria-controls="tab-billeteras">Cuentas y Billeteras</a>
       <a href="#" class="subnav-tab" data-tab="plazofijo" role="tab" id="tab-plazofijo-tab" aria-selected="false" aria-controls="tab-plazofijo">Plazo Fijo</a>
+      <a href="#" class="subnav-tab" data-tab="lecaps" role="tab" id="tab-lecaps-tab" aria-selected="false" aria-controls="tab-lecaps">LECAPs</a>
     </div>
   </nav>
 
@@ -103,13 +104,31 @@
       </section>
     </div>
 
+    <!-- Tab: LECAPs -->
+    <div id="tab-lecaps" role="tabpanel" aria-labelledby="tab-lecaps-tab" style="display:none">
+      <section class="section" id="lecaps-section">
+        <h2>LECAPs y BONCAPs</h2>
+        <p class="section-desc">Letras y bonos capitalizables del Tesoro — Rendimiento implícito según precio de mercado</p>
+        <div id="lecaps-list"></div>
+        <p class="section-source" id="lecaps-source"></p>
+      </section>
+      <section class="section" id="lecaps-chart-section">
+        <h2>Curva de rendimientos</h2>
+        <p class="section-desc">TIR vs días al vencimiento</p>
+        <div class="scatter-plot">
+          <canvas id="lecaps-scatter"></canvas>
+        </div>
+      </section>
+    </div>
+
   </main>
 
   <footer class="footer">
-    <p>Datos de FCIs provistos por CAFCI. Datos de Plazos Fijos provistos por BCRA.</p>
+    <p>Datos de FCIs provistos por CAFCI. Datos de Plazos Fijos provistos por BCRA. Datos de LECAPs de BYMA.</p>
     <p>Los rendimientos pasados no garantizan rendimientos futuros.</p>
   </footer>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <script src="/app.js"></script>
 </body>
 </html>

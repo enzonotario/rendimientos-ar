@@ -310,14 +310,20 @@ function setupTabs() {
 
       document.getElementById('tab-billeteras').style.display = target === 'billeteras' ? '' : 'none';
       document.getElementById('tab-plazofijo').style.display = target === 'plazofijo' ? '' : 'none';
+      document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
 
       const hero = document.getElementById('hero');
       if (target === 'plazofijo') {
         hero.querySelector('h1').textContent = 'Tasas de Plazo Fijo';
         hero.querySelector('p').textContent = 'Compará tasas de plazo fijo de bancos argentinos. Datos provistos por el BCRA.';
-        // Load plazo fijo on first click
         if (!document.getElementById('plazofijo-list').hasChildNodes()) {
           loadPlazoFijo();
+        }
+      } else if (target === 'lecaps') {
+        hero.querySelector('h1').textContent = 'LECAPs y BONCAPs';
+        hero.querySelector('p').textContent = 'Rendimiento implícito de letras y bonos capitalizables del Tesoro según precio de mercado.';
+        if (!document.getElementById('lecaps-list').hasChildNodes()) {
+          loadLecaps();
         }
       } else {
         hero.querySelector('h1').textContent = 'Rendimientos de Fondos y Billeteras';
@@ -455,4 +461,258 @@ function formatBankName(name) {
     'UALA': 'Ualá',
   };
   return MAP[name] || name;
+}
+
+// ─── LECAPs section ───
+
+// Parse YYYY-MM-DD as local date (not UTC)
+function parseLocalDate(str) {
+  const [y, m, d] = str.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// Format date as YYYY-MM-DD local
+function toLocalISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+// Get next business day (skip weekends + AR holidays)
+function getSettlementDate(from) {
+  // Argentine holidays 2026-2027 (fixed + moveable + puentes)
+  const holidays = [
+    '2026-03-23','2026-03-24','2026-04-02','2026-04-03',
+    '2026-05-01','2026-05-25','2026-06-15','2026-06-20',
+    '2026-07-09','2026-08-17','2026-10-12','2026-11-23',
+    '2026-12-07','2026-12-08','2026-12-25','2027-01-01',
+  ];
+  const d = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  let steps = 0;
+  while (steps < 1) {
+    d.setDate(d.getDate() + 1);
+    const dow = d.getDay();
+    if (dow === 0 || dow === 6) continue;
+    const iso = toLocalISO(d);
+    if (holidays.includes(iso)) continue;
+    steps++;
+  }
+  return d;
+}
+
+async function loadLecaps() {
+  const container = document.getElementById('lecaps-list');
+  container.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando LECAPs...</p></div>`;
+
+  try {
+    const config = await fetch('/api/config').then(r => r.json());
+    const lecaps = config.lecaps;
+    if (!lecaps || !lecaps.letras || !lecaps.letras.length) {
+      container.innerHTML = '<div class="loading">No se pudieron cargar los datos de LECAPs.</div>';
+      return;
+    }
+
+    // Settlement is T+1 business day
+    const today = new Date();
+    const settlement = getSettlementDate(today);
+
+    const items = lecaps.letras.filter(l => l.activo).map(l => {
+      const vto = parseLocalDate(l.fecha_vencimiento);
+      const dias = Math.max(1, Math.round((vto - settlement) / (1000 * 60 * 60 * 24)));
+      const ganancia = l.pago_final / l.precio;
+      const tna = (ganancia - 1) * (365 / dias) * 100;
+      const tir = (Math.pow(ganancia, 365 / dias) - 1) * 100;
+      return { ...l, dias, tna, tir };
+    });
+
+    // Sort by days to maturity (ascending)
+    items.sort((a, b) => a.dias - b.dias);
+
+    // Render table
+    const bestTir = Math.max(...items.map(i => i.tir));
+    const settlStr = `${String(settlement.getDate()).padStart(2,'0')}/${String(settlement.getMonth()+1).padStart(2,'0')}/${settlement.getFullYear()}`;
+    const rows = items.map(l => {
+      const isBoncap = l.ticker.startsWith('T');
+      const tipo = isBoncap ? 'boncap' : 'lecap';
+      const isHighlighted = l.tir === bestTir ? ' highlighted-row' : '';
+      const vtoDate = parseLocalDate(l.fecha_vencimiento);
+      const vtoStr = `${String(vtoDate.getDate()).padStart(2,'0')}/${String(vtoDate.getMonth()+1).padStart(2,'0')}/${vtoDate.getFullYear()}`;
+      return `<tr class="${isHighlighted}">
+        <td><span class="lecap-ticker">${l.ticker}</span><span class="lecap-type-badge ${tipo}">${tipo.toUpperCase()}</span></td>
+        <td>${l.precio.toFixed(2)}</td>
+        <td>${l.pago_final.toFixed(3)}</td>
+        <td>${l.dias}</td>
+        <td>${vtoStr}</td>
+        <td class="lecap-tna">${l.tna.toFixed(2)}%</td>
+        <td class="lecap-tir">${l.tir.toFixed(2)}%</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <div class="lecap-table-wrap">
+        <table class="lecap-table">
+          <thead>
+            <tr>
+              <th class="col-ticker">Ticker</th>
+              <th class="col-precio">Precio</th>
+              <th class="col-pago">Pago Final</th>
+              <th class="col-dias">Días</th>
+              <th class="col-vto">Vencimiento</th>
+              <th class="col-tna">TNA</th>
+              <th class="col-tir">TIR</th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+      <p style="font-size:0.7rem;color:var(--text-tertiary);margin-top:6px">Liquidación T+1: ${settlStr}. Los días al vencimiento se calculan desde la fecha de liquidación.</p>`;
+
+    // Source note
+    const source = document.getElementById('lecaps-source');
+    if (source) source.textContent = `Fuente: ${lecaps.fuente} — Actualizado: ${lecaps.actualizado}`;
+
+    // Render scatter plot (TIR vs Días)
+    renderLecapScatter(items);
+  } catch (e) {
+    console.error('Error loading LECAPs:', e);
+    container.innerHTML = '<div class="loading">Error al cargar datos de LECAPs.</div>';
+  }
+}
+
+function renderLecapScatter(items) {
+  const canvas = document.getElementById('lecaps-scatter');
+  if (!canvas || typeof Chart === 'undefined') return;
+
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
+  const textColor = isDark ? '#a0a0a8' : '#71717a';
+
+  const lecapData = items.filter(l => !l.ticker.startsWith('T'));
+  const boncapData = items.filter(l => l.ticker.startsWith('T'));
+
+  // Polynomial regression (degree 2) for trend curve
+  const allPoints = items.map(l => [l.dias, l.tir]).sort((a, b) => a[0] - b[0]);
+  const curve = fitPolyCurve(allPoints, 2, 50);
+
+  new Chart(canvas, {
+    type: 'scatter',
+    data: {
+      datasets: [
+        {
+          label: 'Curva',
+          data: curve,
+          type: 'line',
+          borderColor: isDark ? 'rgba(160,160,168,0.4)' : 'rgba(0,0,0,0.15)',
+          borderWidth: 2,
+          borderDash: [6, 3],
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          tension: 0.4,
+          fill: false,
+          order: 2,
+        },
+        {
+          label: 'LECAP',
+          data: lecapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker })),
+          backgroundColor: '#059669',
+          borderColor: '#059669',
+          pointRadius: 7,
+          pointHoverRadius: 10,
+          order: 1,
+        },
+        {
+          label: 'BONCAP',
+          data: boncapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker })),
+          backgroundColor: '#3b82f6',
+          borderColor: '#3b82f6',
+          pointRadius: 7,
+          pointHoverRadius: 10,
+          pointStyle: 'rectRounded',
+          order: 1,
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      layout: { padding: { top: 10, right: 20, bottom: 5, left: 5 } },
+      plugins: {
+        legend: {
+          labels: {
+            color: textColor,
+            font: { family: "'DM Sans', sans-serif", size: 12 },
+            filter: (item) => item.text !== 'Curva'
+          }
+        },
+        tooltip: {
+          filter: (item) => item.dataset.label !== 'Curva',
+          callbacks: {
+            label: (ctx) => {
+              const p = ctx.raw;
+              return `${p.ticker}: TIR ${p.y.toFixed(2)}% — ${p.x} días`;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: 'Días al vencimiento', color: textColor, font: { family: "'DM Sans', sans-serif", size: 12 } },
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { family: "'DM Sans', sans-serif" } }
+        },
+        y: {
+          title: { display: true, text: 'TIR (%)', color: textColor, font: { family: "'DM Sans', sans-serif", size: 12 } },
+          grid: { color: gridColor },
+          ticks: { color: textColor, font: { family: "'DM Sans', sans-serif" }, callback: v => v.toFixed(1) + '%' }
+        }
+      }
+    }
+  });
+}
+
+// Fit polynomial of given degree, return n evenly-spaced {x,y} points
+function fitPolyCurve(points, degree, n) {
+  const xs = points.map(p => p[0]);
+  const ys = points.map(p => p[1]);
+  const m = degree + 1;
+
+  // Build normal equations (Vandermonde)
+  const A = [];
+  const B = [];
+  for (let i = 0; i < m; i++) {
+    A[i] = [];
+    for (let j = 0; j < m; j++) {
+      A[i][j] = xs.reduce((s, x) => s + Math.pow(x, i + j), 0);
+    }
+    B[i] = xs.reduce((s, x, k) => s + ys[k] * Math.pow(x, i), 0);
+  }
+
+  // Gaussian elimination
+  for (let i = 0; i < m; i++) {
+    let maxRow = i;
+    for (let k = i + 1; k < m; k++) if (Math.abs(A[k][i]) > Math.abs(A[maxRow][i])) maxRow = k;
+    [A[i], A[maxRow]] = [A[maxRow], A[i]];
+    [B[i], B[maxRow]] = [B[maxRow], B[i]];
+    for (let k = i + 1; k < m; k++) {
+      const f = A[k][i] / A[i][i];
+      for (let j = i; j < m; j++) A[k][j] -= f * A[i][j];
+      B[k] -= f * B[i];
+    }
+  }
+  const coeffs = new Array(m);
+  for (let i = m - 1; i >= 0; i--) {
+    coeffs[i] = B[i];
+    for (let j = i + 1; j < m; j++) coeffs[i] -= A[i][j] * coeffs[j];
+    coeffs[i] /= A[i][i];
+  }
+
+  // Generate curve points
+  const minX = Math.min(...xs);
+  const maxX = Math.max(...xs);
+  const result = [];
+  for (let i = 0; i <= n; i++) {
+    const x = minX + (maxX - minX) * (i / n);
+    let y = 0;
+    for (let j = 0; j < m; j++) y += coeffs[j] * Math.pow(x, j);
+    result.push({ x: Math.round(x), y });
+  }
+  return result;
 }
