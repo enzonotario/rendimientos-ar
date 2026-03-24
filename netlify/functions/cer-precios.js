@@ -16,12 +16,12 @@ exports.handler = async (event, context) => {
     }
 
     const data = await response.json();
-    
-    if (!data.data || !Array.isArray(data.data)) {
+
+    if (!Array.isArray(data)) {
       throw new Error('Invalid data912 API response format');
     }
 
-    const bonosCER = data.data.filter(bond => 
+    const bonosCER = data.filter(bond =>
       TICKERS_CER.includes(bond.symbol)
     );
 

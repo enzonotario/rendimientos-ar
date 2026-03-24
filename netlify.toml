@@ -38,6 +38,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/cer"
+  to = "/.netlify/functions/cer"
+  status = 200
+
+[[redirects]]
+  from = "/api/cer-precios"
+  to = "/.netlify/functions/cer-precios"
+  status = 200
+
+[[redirects]]
   from = "/api/config"
   to = "/config.json"
   status = 200

@@ -8,15 +8,15 @@ Rendimientos AR - Sitio para comparar rendimientos de productos financieros en A
 
 - **Frontend**: Vanilla JS + CSS (no framework), Chart.js para graficos
 - **Backend**: Express.js (local dev), Netlify Functions (prod)
-- **Datos**: ArgentinaDatos API (FCIs, Plazo Fijo), data912 (LECAPs, CEDEARs, Bonos), Yahoo Finance (Monitor Global, CEDEARs USD), Google News RSS
+- **Datos**: ArgentinaDatos API (FCIs, Plazo Fijo), data912 (LECAPs, Bonos), Yahoo Finance (Monitor Global), Google News RSS
 - **Deploy**: Netlify (`npx netlify deploy --prod`)
 - **Dominio**: rendimientos.co (canonical), rendimientos-ar.netlify.app (legacy)
 
 ## Estructura clave
 
-- `public/index.html` - SPA con 4 secciones: Mundo, ARS, CEDEARs, Bonos
+- `public/index.html` - SPA con 3 secciones: Mundo, ARS, Bonos
 - `public/app.js` - Toda la logica del frontend
-- `public/config.json` - Config estatica (billeteras, ratios CEDEARs, flujos bonos)
+- `public/config.json` - Config estatica (billeteras, LECAPs, flujos bonos)
 - `public/styles.css` - Estilos + dark mode con CSS variables
 - `server.js` - Server Express para dev local
 - `netlify/functions/` - Funciones serverless (proxies de APIs)
@@ -79,7 +79,7 @@ Datos:
 ```
 Agrega un nuevo CEDEAR a la tabla de ratios en public/config.json, seccion "cedears_ratios".
 El formato es: { "ticker": "XXXX", "ratio": N }
-donde ratio es la cantidad de CEDEARs que equivalen a 1 ADR.
+donde ratio es la cantidad de  que equivalen a 1 ADR.
 
 Datos:
 - Ticker: [ticker en BYMA]
@@ -118,7 +118,7 @@ Los precios se obtienen en vivo de data912, no hace falta actualizar precios.
 
 ```
 Navega https://rendimientos.co/ como un usuario real.
-Revisa cada seccion: Mundo, ARS (Billeteras, Plazo Fijo, LECAPs), CEDEARs, Bonos.
+Revisa cada seccion: Mundo, ARS (Billeteras, Plazo Fijo, LECAPs), , Bonos.
 Busca:
 - Links rotos o que no funcionan
 - Datos desactualizados o inconsistentes

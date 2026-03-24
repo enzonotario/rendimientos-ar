@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
   setupTabs();
   setupKeyboardNav();
-  addShareButtons();
   loadMundo();
   loadNewsTicker();
   updateVisitCounter();
@@ -329,6 +328,7 @@ function setupTabs() {
       document.getElementById('tab-billeteras').style.display = target === 'billeteras' ? '' : 'none';
       document.getElementById('tab-plazofijo').style.display = target === 'plazofijo' ? '' : 'none';
       document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
+      document.getElementById('tab-cer').style.display = target === 'cer' ? '' : 'none';
       document.getElementById('tab-soberanos').style.display = 'none';
 
       const hero = document.getElementById('hero');
@@ -343,6 +343,12 @@ function setupTabs() {
         hero.querySelector('p').textContent = 'Rendimiento implícito de letras y bonos capitalizables del Tesoro según precio de mercado.';
         if (!document.getElementById('lecaps-list').hasChildNodes()) {
           loadLecaps();
+        }
+      } else if (target === 'cer') {
+        hero.querySelector('h1').textContent = 'Bonos CER';
+        hero.querySelector('p').textContent = 'Rendimiento real de bonos ajustados por CER en pesos argentinos.';
+        if (!document.getElementById('cer-list').hasChildNodes()) {
+          loadCER();
         }
       } else {
         hero.querySelector('h1').textContent = 'Rendimientos de Fondos y Billeteras';
@@ -366,6 +372,7 @@ function setupTabs() {
     document.getElementById('tab-billeteras').style.display = 'none';
     document.getElementById('tab-plazofijo').style.display = 'none';
     document.getElementById('tab-lecaps').style.display = 'none';
+    document.getElementById('tab-cer').style.display = 'none';
     document.getElementById('tab-soberanos').style.display = 'none';
     document.getElementById('section-mundo').style.display = 'none';
     [headerArs, headerSoberanos, headerMundo].forEach(b => b && b.classList.remove('active'));
@@ -394,10 +401,12 @@ function setupTabs() {
       document.getElementById('tab-billeteras').style.display = target === 'billeteras' ? '' : 'none';
       document.getElementById('tab-plazofijo').style.display = target === 'plazofijo' ? '' : 'none';
       document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
+      document.getElementById('tab-cer').style.display = target === 'cer' ? '' : 'none';
     } else {
       document.getElementById('tab-billeteras').style.display = '';
       document.getElementById('tab-plazofijo').style.display = 'none';
       document.getElementById('tab-lecaps').style.display = 'none';
+      document.getElementById('tab-cer').style.display = 'none';
     }
     // Restore hero
     const activeSubtab = document.querySelector('.subnav-tab.active');
@@ -407,6 +416,9 @@ function setupTabs() {
     } else if (activeSubtab && activeSubtab.dataset.tab === 'lecaps') {
       hero.querySelector('h1').textContent = 'LECAPs y BONCAPs';
       hero.querySelector('p').textContent = 'Rendimiento implícito de letras y bonos capitalizables del Tesoro según precio de mercado.';
+    } else if (activeSubtab && activeSubtab.dataset.tab === 'cer') {
+      hero.querySelector('h1').textContent = 'Bonos CER';
+      hero.querySelector('p').textContent = 'Rendimiento real de bonos ajustados por CER en pesos argentinos.';
     } else {
       hero.querySelector('h1').textContent = 'Rendimientos de Fondos y Billeteras';
       hero.querySelector('p').textContent = 'Compará rendimientos actualizados de billeteras y fondos de liquidez en Argentina.';
@@ -425,9 +437,6 @@ function setupTabs() {
     updatePageTitle('bonos');
     if (!document.getElementById('soberanos-list').hasChildNodes()) {
       loadSoberanos();
-    }
-    if (!document.getElementById('cer-list').hasChildNodes()) {
-      loadCER();
     }
   }
 
@@ -454,15 +463,21 @@ function setupTabs() {
   else if (initialHash === 'bonos') switchToSoberanos();
   else if (initialHash === 'plazofijo') { switchToArs(); document.querySelector('.subnav-tab[data-tab="plazofijo"]')?.click(); }
   else if (initialHash === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
+  else if (initialHash === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
 
-  // Handle back/forward navigation
+  // Handle back/forward navigation (skip if subnav tab already active)
+  let _hashChanging = false;
   window.addEventListener('hashchange', () => {
+    if (_hashChanging) return;
+    _hashChanging = true;
     const h = location.hash.replace('#', '');
     if (h === 'ars') switchToArs();
     else if (h === 'bonos') switchToSoberanos();
     else if (h === 'plazofijo') { switchToArs(); document.querySelector('.subnav-tab[data-tab="plazofijo"]')?.click(); }
     else if (h === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
+    else if (h === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
     else switchToMundo();
+    _hashChanging = false;
   });
 }
 
@@ -489,41 +504,6 @@ function setupKeyboardNav() {
       tabs.forEach(t => t.setAttribute('tabindex', '-1'));
       tab.setAttribute('tabindex', '0');
     });
-  });
-}
-
-// ─── Share button (🔗) per subnav tab ───
-function addShareButtons() {
-  const tabs = document.querySelectorAll('.subnav-tab[data-tab]');
-  tabs.forEach(tab => {
-    const btn = document.createElement('button');
-    btn.className = 'share-tab-btn';
-    btn.title = 'Copiar link a esta sección';
-    btn.setAttribute('aria-label', 'Copiar enlace');
-    btn.textContent = '🔗';
-
-    btn.addEventListener('click', async (e) => {
-      e.stopPropagation();
-      const hash = '#' + tab.dataset.tab;
-      const url = window.location.origin + window.location.pathname + hash;
-      try {
-        await navigator.clipboard.writeText(url);
-      } catch {
-        // fallback for older browsers
-        const input = document.createElement('input');
-        input.value = url;
-        document.body.appendChild(input);
-        input.select();
-        document.execCommand('copy');
-        document.body.removeChild(input);
-      }
-      const prev = btn.textContent;
-      btn.textContent = '✓';
-      btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = prev; btn.classList.remove('copied'); }, 1500);
-    });
-
-    tab.appendChild(btn);
   });
 }
 
@@ -1487,17 +1467,16 @@ async function loadCER() {
   container.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando bonos CER...</p></div>`;
 
   try {
-    const [config, cerData, cerUltimo, preciosData] = await Promise.all([
+    const [config, cerData, preciosData] = await Promise.all([
       fetch('/api/config').then(r => r.json()),
       fetch('/api/cer').then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch('/api/cer-ultimo').then(r => r.ok ? r.json() : null).catch(() => null),
       fetch('/api/cer-precios').then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] }))
     ]);
 
     const bonosCER = config.bonos_cer || {};
-    const cerActual = cerData?.cer || 0; // CER T-10 para cálculos
-    const cerUltimoPublicado = cerUltimo?.cer || 0; // Último CER para mostrar
-    const fechaUltimoCER = cerUltimo?.fecha || '';
+    const cerActual = cerData?.cer || 0;
+    const cerUltimoPublicado = cerActual;
+    const fechaUltimoCER = cerData?.fecha || '';
     const bondPrices = preciosData.data || [];
 
     if (!cerActual || !bondPrices.length) {
