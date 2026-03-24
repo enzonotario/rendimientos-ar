@@ -1299,7 +1299,8 @@
           "fecha": "2026-12-15",
           "monto": 1.02637
         }
-      ]
+      ],
+      "nombre": "Aeropuertos Argentina 2000"
     },
     "AFCI": {
       "ticker_d912": "AFCID",
@@ -1313,7 +1314,8 @@
           "fecha": "2026-11-09",
           "monto": 1.0331
         }
-      ]
+      ],
+      "nombre": "Banco Comafi"
     },
     "BACG": {
       "ticker_d912": "BACGD",
@@ -1347,7 +1349,8 @@
           "fecha": "2029-06-25",
           "monto": 1.04
         }
-      ]
+      ],
+      "nombre": "Banco Macro"
     },
     "BACH": {
       "ticker_d912": "BACHD",
@@ -1393,7 +1396,8 @@
           "fecha": "2031-01-28",
           "monto": 1.04
         }
-      ]
+      ],
+      "nombre": "Banco Macro"
     },
     "BF37": {
       "ticker_d912": "BF37D",
@@ -1403,7 +1407,8 @@
           "fecha": "2026-08-24",
           "monto": 1.030082
         }
-      ]
+      ],
+      "nombre": "Banco Provincia"
     },
     "BF40": {
       "ticker_d912": "BF40D",
@@ -1421,7 +1426,8 @@
           "fecha": "2027-08-27",
           "monto": 1.024795
         }
-      ]
+      ],
+      "nombre": "Banco Provincia"
     },
     "BVCO": {
       "ticker_d912": "BVCOD",
@@ -1435,7 +1441,8 @@
           "fecha": "2026-07-15",
           "monto": 1.0199
         }
-      ]
+      ],
+      "nombre": "BST"
     },
     "BYCH": {
       "ticker_d912": "BYCHD",
@@ -1465,7 +1472,8 @@
           "fecha": "2028-10-10",
           "monto": 1.0388
         }
-      ]
+      ],
+      "nombre": "Banco Galicia"
     },
     "BYCV": {
       "ticker_d912": "BYCVD",
@@ -1475,7 +1483,8 @@
           "fecha": "2026-08-31",
           "monto": 1.033904
         }
-      ]
+      ],
+      "nombre": "Banco Galicia"
     },
     "BYCW": {
       "ticker_d912": "BYCWD",
@@ -1489,7 +1498,8 @@
           "fecha": "2026-11-30",
           "monto": 1.0329
         }
-      ]
+      ],
+      "nombre": "Banco Galicia"
     },
     "CP36O": {
       "ticker_d912": "CP36D",
@@ -1511,7 +1521,8 @@
           "fecha": "2027-10-11",
           "monto": 1.0328
         }
-      ]
+      ],
+      "nombre": "CGC"
     },
     "CP37": {
       "ticker_d912": "CP37D",
@@ -1533,7 +1544,8 @@
           "fecha": "2027-03-10",
           "monto": 1.0173
         }
-      ]
+      ],
+      "nombre": "CGC"
     },
     "CS44": {
       "ticker_d912": "CS44D",
@@ -1547,7 +1559,8 @@
           "fecha": "2027-01-18",
           "monto": 1.030247
         }
-      ]
+      ],
+      "nombre": "Cresud"
     },
     "CS47": {
       "ticker_d912": "CS47D",
@@ -1577,7 +1590,8 @@
           "fecha": "2028-11-15",
           "monto": 1.0353
         }
-      ]
+      ],
+      "nombre": "Cresud"
     },
     "CS50": {
       "ticker_d912": "CS50D",
@@ -1607,7 +1621,8 @@
           "fecha": "2029-03-12",
           "monto": 1.036
         }
-      ]
+      ],
+      "nombre": "Cresud"
     },
     "CS51": {
       "ticker_d912": "CS51D",
@@ -1621,7 +1636,8 @@
           "fecha": "2027-01-20",
           "monto": 1.029
         }
-      ]
+      ],
+      "nombre": "Cresud"
     },
     "FO4A": {
       "ticker_d912": "FO4AD",
@@ -1651,7 +1667,8 @@
           "fecha": "2027-07-20",
           "monto": 1.019696
         }
-      ]
+      ],
+      "nombre": "Forestal Argentina"
     },
     "GN47": {
       "ticker_d912": "GN47D",
@@ -1681,7 +1698,8 @@
           "fecha": "2028-10-17",
           "monto": 1.0301
         }
-      ]
+      ],
+      "nombre": "Genneia"
     },
     "GN49": {
       "ticker_d912": "GN49D",
@@ -1751,7 +1769,8 @@
           "fecha": "2033-12-02",
           "monto": 0.353175
         }
-      ]
+      ],
+      "nombre": "Genneia"
     },
     "HBCA": {
       "ticker_d912": "HBCAD",
@@ -1761,7 +1780,8 @@
           "fecha": "2026-08-24",
           "monto": 1.0351
         }
-      ]
+      ],
+      "nombre": "Banco Hipotecario"
     },
     "HBC": {
       "ticker_d912": "HBCDD",
@@ -1775,7 +1795,8 @@
           "fecha": "2026-11-23",
           "monto": 1.03074
         }
-      ]
+      ],
+      "nombre": "Banco Hipotecario"
     },
     "HJCF": {
       "ticker_d912": "HJCFD",
@@ -1789,7 +1810,8 @@
           "fecha": "2026-10-21",
           "monto": 1.0251
         }
-      ]
+      ],
+      "nombre": "John Deere"
     },
     "IRCL": {
       "ticker_d912": "IRCLD",
@@ -1799,7 +1821,8 @@
           "fecha": "2026-06-10",
           "monto": 1.0299
         }
-      ]
+      ],
+      "nombre": "IRSA"
     },
     "IRCN": {
       "ticker_d912": "IRCND",
@@ -1821,7 +1844,8 @@
           "fecha": "2027-10-25",
           "monto": 1.0145
         }
-      ]
+      ],
+      "nombre": "IRSA"
     },
     "IRCO": {
       "ticker_d912": "IRCOD",
@@ -1859,7 +1883,8 @@
           "fecha": "2029-10-23",
           "monto": 1.0183
         }
-      ]
+      ],
+      "nombre": "IRSA"
     },
     "LDCG": {
       "ticker_d912": "LDCGD",
@@ -1893,7 +1918,8 @@
           "fecha": "2027-10-04",
           "monto": 1.0117
         }
-      ]
+      ],
+      "nombre": "Ledesma"
     },
     "LMS7": {
       "ticker_d912": "LMS7D",
@@ -1943,7 +1969,8 @@
           "fecha": "2028-10-13",
           "monto": 0.0852
         }
-      ]
+      ],
+      "nombre": "Loma Negra"
     },
     "LMS8": {
       "ticker_d912": "LMS8D",
@@ -1965,7 +1992,8 @@
           "fecha": "2027-03-22",
           "monto": 0.25395
         }
-      ]
+      ],
+      "nombre": "Loma Negra"
     },
     "LOC5": {
       "ticker_d912": "LOC5D",
@@ -1983,7 +2011,8 @@
           "fecha": "2027-07-26",
           "monto": 1.04011
         }
-      ]
+      ],
+      "nombre": "Loma Negra"
     },
     "MGCN": {
       "ticker_d912": "MGCND",
@@ -2013,7 +2042,8 @@
           "fecha": "2028-10-04",
           "monto": 1.0288
         }
-      ]
+      ],
+      "nombre": "Pampa Energía"
     },
     "MGCO": {
       "ticker_d912": "MGCOD",
@@ -2091,7 +2121,8 @@
           "fecha": "2034-12-18",
           "monto": 1.039375
         }
-      ]
+      ],
+      "nombre": "Pampa Energía"
     },
     "MGCR": {
       "ticker_d912": "MGCRD",
@@ -2193,7 +2224,8 @@
           "fecha": "2037-11-16",
           "monto": 1.03875
         }
-      ]
+      ],
+      "nombre": "Pampa Energía"
     },
     "OLC6": {
       "ticker_d912": "OLC6D",
@@ -2227,7 +2259,8 @@
           "fecha": "2029-06-05",
           "monto": 1.037397
         }
-      ]
+      ],
+      "nombre": "OLX"
     },
     "PLC1": {
       "ticker_d912": "PLC1D",
@@ -2253,7 +2286,8 @@
           "fecha": "2028-01-27",
           "monto": 1.0151
         }
-      ]
+      ],
+      "nombre": "Pluspetrol"
     },
     "PN35": {
       "ticker_d912": "PN35D",
@@ -2291,7 +2325,8 @@
           "fecha": "2029-09-27",
           "monto": 1.0353
         }
-      ]
+      ],
+      "nombre": "Pan American Energy"
     },
     "PN36": {
       "ticker_d912": "PN36D",
@@ -2345,7 +2380,8 @@
           "fecha": "2031-11-13",
           "monto": 1.0365
         }
-      ]
+      ],
+      "nombre": "Pan American Energy"
     },
     "RC2C": {
       "ticker_d912": "RC2CD",
@@ -2359,7 +2395,8 @@
           "fecha": "2026-10-06",
           "monto": 1.029581
         }
-      ]
+      ],
+      "nombre": "Arcor"
     },
     "SXC2": {
       "ticker_d912": "SXC2D",
@@ -2369,7 +2406,8 @@
           "fecha": "2026-06-01",
           "monto": 1.0325
         }
-      ]
+      ],
+      "nombre": "Stonex"
     },
     "T662": {
       "ticker_d912": "T662D",
@@ -2383,7 +2421,8 @@
           "fecha": "2026-08-31",
           "monto": 1.017274
         }
-      ]
+      ],
+      "nombre": "Ternium"
     },
     "TSC4": {
       "ticker_d912": "TSC4D",
@@ -2469,7 +2508,8 @@
           "fecha": "2035-11-20",
           "monto": 1.03875
         }
-      ]
+      ],
+      "nombre": "TGS"
     },
     "TTC8": {
       "ticker_d912": "TTC8D",
@@ -2491,7 +2531,8 @@
           "fecha": "2027-10-25",
           "monto": 1.025205
         }
-      ]
+      ],
+      "nombre": "Tecpetrol"
     },
     "TTCB": {
       "ticker_d912": "TTCBD",
@@ -2513,7 +2554,8 @@
           "fecha": "2027-10-18",
           "monto": 1.032945
         }
-      ]
+      ],
+      "nombre": "Tecpetrol"
     },
     "TTC": {
       "ticker_d912": "TTCDD",
@@ -2559,7 +2601,8 @@
           "fecha": "2030-11-04",
           "monto": 1.038125
         }
-      ]
+      ],
+      "nombre": "Tecpetrol"
     },
     "VBC1": {
       "ticker_d912": "VBC1D",
@@ -2573,7 +2616,8 @@
           "fecha": "2027-03-11",
           "monto": 1.037192
         }
-      ]
+      ],
+      "nombre": "Banco de Valores"
     },
     "VSCO": {
       "ticker_d912": "VSCOD",
@@ -2587,7 +2631,8 @@
           "fecha": "2027-03-08",
           "monto": 1.032589
         }
-      ]
+      ],
+      "nombre": "Vista Energy"
     },
     "VSCP": {
       "ticker_d912": "VSCPD",
@@ -2621,7 +2666,8 @@
           "fecha": "2029-05-03",
           "monto": 0.259918
         }
-      ]
+      ],
+      "nombre": "Vista Energy"
     },
     "VSCT": {
       "ticker_d912": "VSCTD",
@@ -2707,7 +2753,8 @@
           "fecha": "2035-12-10",
           "monto": 0.352963
         }
-      ]
+      ],
+      "nombre": "Vista Energy"
     },
     "VSCW": {
       "ticker_d912": "VSCWD",
@@ -2733,7 +2780,8 @@
           "fecha": "2027-04-15",
           "monto": 1.014795
         }
-      ]
+      ],
+      "nombre": "Vista Energy"
     },
     "YM34": {
       "ticker_d912": "YM34D",
@@ -2803,7 +2851,8 @@
           "fecha": "2034-01-17",
           "monto": 0.4165
         }
-      ]
+      ],
+      "nombre": "YPF"
     },
     "YM37": {
       "ticker_d912": "YM37D",
@@ -2829,7 +2878,8 @@
           "fecha": "2027-05-07",
           "monto": 1.017068
         }
-      ]
+      ],
+      "nombre": "YPF"
     },
     "YM38": {
       "ticker_d912": "YM38D",
@@ -2859,7 +2909,8 @@
           "fecha": "2027-07-22",
           "monto": 1.018699
         }
-      ]
+      ],
+      "nombre": "YPF"
     },
     "YM40": {
       "ticker_d912": "YM40D",
@@ -2905,7 +2956,8 @@
           "fecha": "2028-08-28",
           "monto": 1.0189
         }
-      ]
+      ],
+      "nombre": "YPF"
     },
     "YMCX": {
       "ticker_d912": "YMCXD",
@@ -2955,7 +3007,8 @@
           "fecha": "2031-09-11",
           "monto": 0.62625
         }
-      ]
+      ],
+      "nombre": "YPF"
     },
     "YMCY": {
       "ticker_d912": "YMCYD",
@@ -3005,7 +3058,8 @@
           "fecha": "2028-10-10",
           "monto": 1.016384
         }
-      ]
+      ],
+      "nombre": "YPF"
     },
     "YMCZ": {
       "ticker_d912": "YMCZD",
@@ -3035,7 +3089,8 @@
           "fecha": "2028-10-10",
           "monto": 1.035096
         }
-      ]
+      ],
+      "nombre": "YPF"
     }
   },
   "bonos_cer": {

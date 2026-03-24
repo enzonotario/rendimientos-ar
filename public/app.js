@@ -1913,7 +1913,7 @@ async function loadONs() {
       const ytm = calcYTM(priceUSD / 100, futureFlows, today);
       if (isNaN(ytm) || !isFinite(ytm)) continue;
       const duration = calcDuration(priceUSD / 100, futureFlows, today, ytm);
-      items.push({ symbol: key, d912Ticker, priceUSD, ytm, duration, vencimiento: bond.vencimiento, volume: priceData.v || 0, flujos: futureFlows });
+      items.push({ symbol: key, d912Ticker, nombre: bond.nombre || '', priceUSD, ytm, duration, vencimiento: bond.vencimiento, volume: priceData.v || 0, flujos: futureFlows });
     }
     items.sort((a, b) => a.duration - b.duration);
     renderONsTable(container, items);
@@ -1926,11 +1926,12 @@ async function loadONs() {
 
 function renderONsTable(container, items) {
   let html = `<div style="overflow-x:auto"><table class="soberanos-table">
-    <thead><tr><th>TICKER</th><th>PRECIO</th><th>TIR</th><th class="col-duration">DURATION</th><th class="col-vto">VENCIMIENTO</th></tr></thead><tbody>`;
+    <thead><tr><th>TICKER</th><th>EMISOR</th><th>PRECIO</th><th>TIR</th><th class="col-duration">DURATION</th><th class="col-vto">VENCIMIENTO</th></tr></thead><tbody>`;
   for (const item of items) {
     const tirColor = item.ytm >= 0 ? 'var(--green)' : 'var(--red)';
     html += `<tr class="on-row" data-symbol="${item.symbol}" style="cursor:pointer">
       <td><strong style="color:var(--accent)">${item.d912Ticker}</strong></td>
+      <td style="font-size:0.8rem;color:var(--text-secondary)">${item.nombre || ''}</td>
       <td style="font-family:var(--font-mono);text-align:right">$${item.priceUSD.toFixed(2)}</td>
       <td style="font-family:var(--font-mono);text-align:right;color:${tirColor};font-weight:600">${item.ytm.toFixed(2)}%</td>
       <td class="col-duration" style="font-family:var(--font-mono);text-align:right">${item.duration.toFixed(2)}</td>
