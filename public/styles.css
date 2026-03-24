@@ -21,7 +21,7 @@
   --accent: #2563eb;
   --accent-light: #eff6ff;
   --accent-dark: #1d4ed8;
-  --green: #059669;
+  --green: #16a34a;
   --green-bg: #f0fdf4;
   --red: #dc2626;
   --red-bg: #fef2f2;
@@ -32,29 +32,29 @@
   --shadow-sm: 0 1px 2px rgba(0,0,0,0.04);
   --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
   --shadow-lg: 0 4px 12px rgba(0,0,0,0.08);
-  --font: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
 }
 
 [data-theme="dark"] {
-  --bg: #111113;
-  --bg-subtle: #1a1a1e;
-  --card-bg: #1c1c20;
-  --text: #f0f0f2;
-  --text-secondary: #a0a0a8;
-  --text-tertiary: #6a6a72;
-  --accent: #3b82f6;
-  --accent-light: #1e2a4a;
-  --accent-dark: #93bbfd;
-  --green: #34d399;
+  --bg: #0c0c0e;
+  --bg-subtle: #161619;
+  --card-bg: #1a1a1e;
+  --text: #f4f4f6;
+  --text-secondary: #a8a8b0;
+  --text-tertiary: #5c5c66;
+  --accent: #4d8ef7;
+  --accent-light: #1a2540;
+  --accent-dark: #a3c4fd;
+  --green: #4ade80;
   --green-bg: #0a2a1a;
-  --red: #f87171;
+  --red: #fb7185;
   --red-bg: #2a0f0f;
-  --border: #2a2a30;
-  --border-light: #222226;
-  --shadow-sm: 0 1px 2px rgba(0,0,0,0.2);
-  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2);
-  --shadow-lg: 0 4px 12px rgba(0,0,0,0.4);
+  --border: #252528;
+  --border-light: #1e1e22;
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.3);
+  --shadow: 0 2px 8px rgba(0,0,0,0.4);
+  --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
 }
 
 body {
@@ -243,10 +243,10 @@ body {
 }
 
 .logo {
-  font-size: 0.95rem;
-  font-weight: 700;
+  font-size: 1rem;
+  font-weight: 800;
   color: var(--text);
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
 }
 
 .currency-tabs {
@@ -338,20 +338,28 @@ body {
   min-width: 0;
 }
 .chart-bar {
-  height: 26px;
-  border-radius: 5px;
+  height: 30px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  padding-right: 8px;
+  padding-right: 10px;
   min-width: 60px;
-  transition: width 0.4s ease;
+  transition: width 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.chart-row:first-child .chart-bar {
+  height: 36px;
+  border-radius: 8px;
 }
 .chart-value {
-  font-size: 0.72rem;
+  font-size: 0.75rem;
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.chart-row:first-child .chart-value {
+  font-size: 0.85rem;
 }
 
 /* LECAP Table */
@@ -567,26 +575,23 @@ body {
 .hero {
   max-width: 780px;
   margin: 0 auto;
-  padding: 20px 24px 12px;
+  padding: 28px 24px 16px;
 }
 
 .hero h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
-  letter-spacing: -0.035em;
-  line-height: 1.2;
-  margin-bottom: 4px;
-  background: linear-gradient(135deg, #d97706, #ea580c, #dc2626, #c026d3, #7c3aed);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  font-size: 1.85rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.15;
+  margin-bottom: 6px;
+  color: var(--text);
 }
 
 .hero p {
   color: var(--text-secondary);
-  font-size: 0.82rem;
+  font-size: 0.85rem;
   max-width: 480px;
-  line-height: 1.45;
+  line-height: 1.5;
 }
 
 /* Container */
@@ -598,20 +603,20 @@ body {
 
 /* Sections */
 .section {
-  margin-top: 20px;
+  margin-top: 28px;
 }
 
 .section h2 {
-  font-size: 0.95rem;
-  font-weight: 650;
+  font-size: 1.1rem;
+  font-weight: 750;
   margin-bottom: 2px;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
 }
 
 .section-desc {
   color: var(--text-tertiary);
   font-size: 0.8rem;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .risk-label {
@@ -627,7 +632,7 @@ body {
 .card-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 /* Fund Card */
@@ -635,25 +640,52 @@ body {
   background: var(--card-bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 14px 18px;
+  padding: 16px 20px;
   display: flex;
   align-items: center;
   gap: 14px;
-  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
 }
 
 .fund-card:hover {
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lg);
   border-color: var(--text-tertiary);
+  transform: translateY(-1px);
 }
 
 .fund-card.highlighted {
   border-color: var(--accent);
   background: var(--accent-light);
+  box-shadow: 0 0 0 1px var(--accent), var(--shadow);
 }
 
 .fund-card.promoted {
   border: 1.5px solid var(--accent);
+}
+
+/* First card in list — star treatment */
+.card-list .fund-card:first-child {
+  padding: 20px 24px;
+  border-width: 1.5px;
+}
+
+.card-list .fund-card:first-child .rate-value {
+  font-size: 1.65rem;
+}
+
+.card-list .fund-card:first-child .fund-logo {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+}
+
+.card-list .fund-card:first-child .fund-logo img {
+  border-radius: 12px;
+}
+
+.card-list .fund-card:first-child .fund-name {
+  font-size: 1rem;
+  font-weight: 700;
 }
 
 /* Logo */
@@ -685,9 +717,9 @@ body {
 }
 
 .fund-name {
-  font-weight: 600;
-  font-size: 0.88rem;
-  letter-spacing: -0.01em;
+  font-weight: 650;
+  font-size: 0.9rem;
+  letter-spacing: -0.015em;
 }
 
 .fund-entity {
@@ -752,11 +784,12 @@ body {
 }
 
 .rate-value {
-  font-size: 1.25rem;
+  font-size: 1.4rem;
   font-weight: 700;
   color: var(--green);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
   font-family: var(--font-mono);
+  line-height: 1;
 }
 
 .rate-label {
@@ -940,7 +973,8 @@ body {
 }
 .mundo-card:hover {
   border-color: var(--text-tertiary);
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-2px);
 }
 .mundo-icon {
   font-size: 1.8rem;
@@ -957,11 +991,12 @@ body {
   font-weight: 500;
 }
 .mundo-price {
-  font-size: 1.25rem;
-  font-weight: 700;
+  font-size: 1.35rem;
+  font-weight: 800;
   color: var(--text);
-  font-family: 'DM Sans', monospace;
-  letter-spacing: -0.02em;
+  font-family: var(--font);
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 .mundo-spark {
   flex-shrink: 0;
@@ -1121,7 +1156,7 @@ body {
   .subnav-inner { padding: 0 16px; gap: 16px; }
   .subnav-tab { font-size: 0.75rem; padding: 8px 0; }
   .hero { padding: 16px 16px 8px; }
-  .hero h1 { font-size: 1.3rem; }
+  .hero h1 { font-size: 1.5rem; }
   .hero p { font-size: 0.78rem; }
   .container { padding: 0 16px 60px; }
   .fund-card {
@@ -1142,7 +1177,11 @@ body {
     text-align: right;
     min-width: 70px;
   }
-  .rate-value { font-size: 1rem; }
+  .rate-value { font-size: 1.1rem; }
+  .card-list .fund-card:first-child { padding: 14px 16px; }
+  .card-list .fund-card:first-child .rate-value { font-size: 1.3rem; }
+  .card-list .fund-card:first-child .fund-logo { width: 40px; height: 40px; }
+  .card-list .fund-card:first-child .fund-name { font-size: 0.88rem; }
   /* Tables mobile - keep all columns, shrink font, allow horizontal scroll */
   .lecap-table, .soberanos-table, .cer-table { table-layout: auto; font-size: 0.65rem; white-space: nowrap; }
   .lecap-table th, .soberanos-table th, .cer-table th { padding: 6px 6px; font-size: 0.58rem; }

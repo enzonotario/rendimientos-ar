@@ -864,7 +864,7 @@ function renderLecapScatter(items) {
         legend: {
           labels: {
             color: textColor,
-            font: { family: "'DM Sans', sans-serif", size: 12 },
+            font: { family: "'Inter', sans-serif", size: 12 },
             filter: (item) => item.text !== 'Curva'
           }
         },
@@ -880,14 +880,14 @@ function renderLecapScatter(items) {
       },
       scales: {
         x: {
-          title: { display: true, text: 'Días al vencimiento', color: textColor, font: { family: "'DM Sans', sans-serif", size: 12 } },
+          title: { display: true, text: 'Días al vencimiento', color: textColor, font: { family: "'Inter', sans-serif", size: 12 } },
           grid: { color: gridColor },
-          ticks: { color: textColor, font: { family: "'DM Sans', sans-serif" } }
+          ticks: { color: textColor, font: { family: "'Inter', sans-serif" } }
         },
         y: {
-          title: { display: true, text: 'TIR (%)', color: textColor, font: { family: "'DM Sans', sans-serif", size: 12 } },
+          title: { display: true, text: 'TIR (%)', color: textColor, font: { family: "'Inter', sans-serif", size: 12 } },
           grid: { color: gridColor },
-          ticks: { color: textColor, font: { family: "'DM Sans', sans-serif" }, callback: v => v.toFixed(1) + '%' }
+          ticks: { color: textColor, font: { family: "'Inter', sans-serif" }, callback: v => v.toFixed(1) + '%' }
         }
       }
     }
