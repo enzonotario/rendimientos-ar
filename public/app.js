@@ -329,7 +329,6 @@ function setupTabs() {
       document.getElementById('tab-plazofijo').style.display = target === 'plazofijo' ? '' : 'none';
       document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
       document.getElementById('tab-cer').style.display = target === 'cer' ? '' : 'none';
-      document.getElementById('tab-ons').style.display = target === 'ons' ? '' : 'none';
       document.getElementById('tab-soberanos').style.display = 'none';
 
       const hero = document.getElementById('hero');
@@ -351,12 +350,6 @@ function setupTabs() {
         if (!document.getElementById('cer-list').hasChildNodes()) {
           loadCER();
         }
-      } else if (target === 'ons') {
-        hero.querySelector('h1').textContent = 'Obligaciones Negociables';
-        hero.querySelector('p').textContent = 'Rendimiento de bonos corporativos en USD. Click en una ON para la calculadora.';
-        if (!document.getElementById('ons-list').hasChildNodes()) {
-          loadONs();
-        }
       } else {
         hero.querySelector('h1').textContent = 'Rendimientos de Fondos y Billeteras';
         hero.querySelector('p').textContent = 'Compará rendimientos actualizados de billeteras y fondos de liquidez en Argentina.';
@@ -372,7 +365,7 @@ function setupTabs() {
   const hero = document.getElementById('hero');
 
   const headerSoberanos = document.getElementById('header-soberanos');
-
+  const headerONs = document.getElementById('header-ons');
   const headerMundo = document.getElementById('header-mundo');
 
   function hideAllTabs() {
@@ -383,7 +376,7 @@ function setupTabs() {
     document.getElementById('tab-ons').style.display = 'none';
     document.getElementById('tab-soberanos').style.display = 'none';
     document.getElementById('section-mundo').style.display = 'none';
-    [headerArs, headerSoberanos, headerMundo].forEach(b => b && b.classList.remove('active'));
+    [headerArs, headerSoberanos, headerONs, headerMundo].forEach(b => b && b.classList.remove('active'));
   }
 
   function updatePageTitle(section) {
@@ -410,13 +403,11 @@ function setupTabs() {
       document.getElementById('tab-plazofijo').style.display = target === 'plazofijo' ? '' : 'none';
       document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
       document.getElementById('tab-cer').style.display = target === 'cer' ? '' : 'none';
-      document.getElementById('tab-ons').style.display = target === 'ons' ? '' : 'none';
     } else {
       document.getElementById('tab-billeteras').style.display = '';
       document.getElementById('tab-plazofijo').style.display = 'none';
       document.getElementById('tab-lecaps').style.display = 'none';
       document.getElementById('tab-cer').style.display = 'none';
-      document.getElementById('tab-ons').style.display = 'none';
     }
     // Restore hero
     const activeSubtab = document.querySelector('.subnav-tab.active');
@@ -463,8 +454,22 @@ function setupTabs() {
     }
   }
 
+  function switchToONs() {
+    hideAllTabs();
+    headerONs.classList.add('active');
+    subnav.style.display = 'none';
+    document.getElementById('tab-ons').style.display = 'block';
+    hero.querySelector('h1').textContent = 'Obligaciones Negociables';
+    hero.querySelector('p').textContent = 'Rendimiento de bonos corporativos en USD. Hacé click en cualquier ON para abrir la calculadora.';
+    updatePageTitle('ons');
+    if (!document.getElementById('ons-list').hasChildNodes()) {
+      loadONs();
+    }
+  }
+
   if (headerArs) headerArs.addEventListener('click', (e) => { e.preventDefault(); switchToArs(); location.hash = 'ars'; });
   if (headerSoberanos) headerSoberanos.addEventListener('click', (e) => { e.preventDefault(); switchToSoberanos(); location.hash = 'bonos'; });
+  if (headerONs) headerONs.addEventListener('click', (e) => { e.preventDefault(); switchToONs(); location.hash = 'ons'; });
   if (headerMundo) headerMundo.addEventListener('click', (e) => { e.preventDefault(); switchToMundo(); location.hash = 'mundo'; });
 
   // Handle initial hash on page load
@@ -474,7 +479,7 @@ function setupTabs() {
   else if (initialHash === 'plazofijo') { switchToArs(); document.querySelector('.subnav-tab[data-tab="plazofijo"]')?.click(); }
   else if (initialHash === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
   else if (initialHash === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
-  else if (initialHash === 'ons') { switchToArs(); document.querySelector('.subnav-tab[data-tab="ons"]')?.click(); }
+  else if (initialHash === 'ons') switchToONs();
 
   // Handle back/forward navigation (skip if subnav tab already active)
   let _hashChanging = false;
@@ -487,7 +492,7 @@ function setupTabs() {
     else if (h === 'plazofijo') { switchToArs(); document.querySelector('.subnav-tab[data-tab="plazofijo"]')?.click(); }
     else if (h === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
     else if (h === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
-    else if (h === 'ons') { switchToArs(); document.querySelector('.subnav-tab[data-tab="ons"]')?.click(); }
+    else if (h === 'ons') switchToONs();
     else switchToMundo();
     _hashChanging = false;
   });
@@ -763,7 +768,21 @@ async function loadLecaps() {
           <tbody>${rows}</tbody>
         </table>
       </div>
+      <p class="calc-hint">💡 <span>Click</span> en cualquier LECAP para abrir la calculadora</p>
       <p style="font-size:0.7rem;color:var(--text-tertiary);margin-top:6px">Liquidación T+1: ${settlStr}. Los días al vencimiento se calculan desde la fecha de liquidación.</p>`;
+
+    // Make table sortable
+    const table = container.querySelector('.lecap-table');
+    if (table) makeSortable(table);
+
+    // Add click handlers for calculator
+    container.querySelectorAll('tbody tr').forEach((row, idx) => {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        const item = items[idx];
+        if (item) openLecapCalculator(item);
+      });
+    });
 
     // Source note
     const source = document.getElementById('lecaps-source');
@@ -1073,9 +1092,14 @@ function renderSoberanosTable(container, items) {
         <tbody>${rows}</tbody>
       </table>
     </div>
+    <p class="calc-hint">💡 <span>Click</span> en cualquier bono para abrir la calculadora</p>
     <p style="font-size:0.7rem;color:var(--text-tertiary);margin-top:6px">
       TIR (YTM) calculada con flujos de fondos futuros descontados. Duration en años (Macaulay).
     </p>`;
+
+  // Make sortable
+  const table = container.querySelector('.soberanos-table');
+  if (table) makeSortable(table);
 }
 
 let soberanosChart = null;
@@ -1741,8 +1765,11 @@ function renderONsTable(container, items) {
       <td class="col-duration" style="font-family:var(--font-mono);text-align:right">${item.duration.toFixed(2)}</td>
       <td class="col-vto">${item.vencimiento}</td></tr>`;
   }
-  html += '</tbody></table></div>';
+  html += '</tbody></table></div><p class="calc-hint">💡 <span>Click</span> en cualquier ON para abrir la calculadora</p>';
   container.innerHTML = html;
+  // Make sortable
+  const table = container.querySelector('.soberanos-table');
+  if (table) makeSortable(table);
   container.querySelectorAll('.on-row').forEach(row => {
     row.addEventListener('click', () => {
       const sym = row.dataset.symbol;
@@ -1834,5 +1861,78 @@ function openONCalculator(item) {
     const newDur = calcDuration(newPrice / 100, item.flujos, today, newYtm);
     if (isFinite(newYtm)) { tirDisplay.textContent = newYtm.toFixed(2) + '%'; tirDisplay.style.color = newYtm >= 0 ? 'var(--green)' : 'var(--red)'; }
     if (isFinite(newDur)) { durDisplay.textContent = newDur.toFixed(2) + ' años'; }
+  });
+}
+
+// ─── Generic sortable table ───
+function makeSortable(tableEl) {
+  const headers = tableEl.querySelectorAll('th');
+  let currentSort = { col: -1, asc: true };
+  headers.forEach((th, colIdx) => {
+    const arrow = document.createElement('span');
+    arrow.className = 'sort-arrow';
+    arrow.textContent = '↕';
+    th.appendChild(arrow);
+    th.addEventListener('click', () => {
+      const asc = currentSort.col === colIdx ? !currentSort.asc : false; // default descending
+      currentSort = { col: colIdx, asc };
+      // Update arrows
+      headers.forEach(h => { const a = h.querySelector('.sort-arrow'); if (a) { a.textContent = '↕'; a.classList.remove('active'); } });
+      arrow.textContent = asc ? '↑' : '↓';
+      arrow.classList.add('active');
+      // Sort rows
+      const tbody = tableEl.querySelector('tbody');
+      const rows = Array.from(tbody.querySelectorAll('tr'));
+      rows.sort((a, b) => {
+        const aText = a.cells[colIdx]?.textContent.trim().replace(/[%$,]/g, '') || '';
+        const bText = b.cells[colIdx]?.textContent.trim().replace(/[%$,]/g, '') || '';
+        const aNum = parseFloat(aText);
+        const bNum = parseFloat(bText);
+        if (!isNaN(aNum) && !isNaN(bNum)) return asc ? aNum - bNum : bNum - aNum;
+        return asc ? aText.localeCompare(bText) : bText.localeCompare(aText);
+      });
+      rows.forEach(r => tbody.appendChild(r));
+    });
+  });
+}
+
+// ─── LECAP Calculator Popup ───
+function openLecapCalculator(item) {
+  document.querySelector('.mundo-modal-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'mundo-modal-overlay';
+  overlay.innerHTML = `
+    <div class="mundo-modal">
+      <div class="mundo-modal-header">
+        <div><h3 style="margin:0">${item.ticker} — Calculadora</h3>
+        <p style="margin:4px 0 0;color:var(--text-secondary);font-size:0.85rem">${item.tipo || 'LECAP'} — Vence: ${item.vencimiento} — Pago final: ${item.pagoFinal}</p></div>
+        <button class="mundo-modal-close">&times;</button>
+      </div>
+      <div class="mundo-modal-body" style="padding:16px">
+        <div style="display:flex;gap:24px;align-items:center;flex-wrap:wrap">
+          <div><label style="font-size:0.8rem;color:var(--text-secondary)">Precio</label>
+            <input type="number" id="lecap-calc-price" value="${item.precio.toFixed(2)}" step="0.01"
+              style="display:block;font-size:1.2rem;font-weight:700;width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text)"></div>
+          <div><label style="font-size:0.8rem;color:var(--text-secondary)">TNA</label>
+            <div id="lecap-calc-tna" style="font-size:1.3rem;font-weight:700;color:var(--text)">${item.tna.toFixed(2)}%</div></div>
+          <div><label style="font-size:0.8rem;color:var(--text-secondary)">TIR</label>
+            <div id="lecap-calc-tir" style="font-size:1.5rem;font-weight:700;color:var(--green)">${item.tir.toFixed(2)}%</div></div>
+          <div><label style="font-size:0.8rem;color:var(--text-secondary)">Días</label>
+            <div style="font-size:1.2rem;font-weight:600;color:var(--text)">${item.dias}</div></div>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.mundo-modal-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  document.getElementById('lecap-calc-price').addEventListener('input', function() {
+    const p = parseFloat(this.value);
+    if (!p || p <= 0) return;
+    const tna = (item.pagoFinal / p - 1) * (365 / item.dias) * 100;
+    const tir = (Math.pow(item.pagoFinal / p, 365 / item.dias) - 1) * 100;
+    document.getElementById('lecap-calc-tna').textContent = tna.toFixed(2) + '%';
+    const tirEl = document.getElementById('lecap-calc-tir');
+    tirEl.textContent = tir.toFixed(2) + '%';
+    tirEl.style.color = tir >= 0 ? 'var(--green)' : 'var(--red)';
   });
 }

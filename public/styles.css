@@ -368,7 +368,15 @@ body {
   text-transform: uppercase;
   letter-spacing: 0.04em;
   text-align: right;
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s;
 }
+.lecap-table th:hover, .soberanos-table th:hover, .cer-table th:hover { color: var(--accent); }
+.lecap-table th .sort-arrow, .soberanos-table th .sort-arrow, .cer-table th .sort-arrow { font-size: 0.6rem; margin-left: 3px; opacity: 0.4; }
+.lecap-table th .sort-arrow.active, .soberanos-table th .sort-arrow.active, .cer-table th .sort-arrow.active { opacity: 1; color: var(--accent); }
+.calc-hint { font-size: 0.75rem; color: var(--text-tertiary); margin-bottom: 8px; }
+.calc-hint span { background: var(--accent-light); color: var(--accent); padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; }
 .lecap-table th:first-child { text-align: left; }
 .lecap-table td {
   padding: 9px 14px;
@@ -1067,32 +1075,11 @@ body {
     min-width: 70px;
   }
   .rate-value { font-size: 1rem; }
-  /* LECAP table mobile */
-  .lecap-table { table-layout: auto; font-size: 0.68rem; }
-  .lecap-table th { padding: 8px 8px; font-size: 0.6rem; }
-  .lecap-table td { padding: 7px 8px; }
-  .lecap-table .col-ticker { width: auto; }
-  .lecap-table .col-precio { width: auto; }
-  .lecap-table .col-pago { width: auto; }
-  .lecap-table .col-dias { width: auto; }
-  .lecap-table .col-vto { display: none; }
-  .lecap-table .col-tna { display: none; }
-  .lecap-table .col-tir { width: auto; }
-  .lecap-table td:nth-child(5) { display: none; }
-  .lecap-table td:nth-child(6) { display: none; }
+  /* Tables mobile - keep all columns, shrink font, allow horizontal scroll */
+  .lecap-table, .soberanos-table, .cer-table { table-layout: auto; font-size: 0.65rem; white-space: nowrap; }
+  .lecap-table th, .soberanos-table th, .cer-table th { padding: 6px 6px; font-size: 0.58rem; }
+  .lecap-table td, .soberanos-table td, .cer-table td { padding: 5px 6px; }
   .lecap-type-badge { font-size: 0.5rem; padding: 1px 4px; margin-left: 4px; }
   .scatter-plot { height: 280px; }
-  /* Soberanos table mobile */
-  .soberanos-table { table-layout: auto; font-size: 0.68rem; }
-  .soberanos-table th { padding: 8px 8px; font-size: 0.6rem; }
-  .soberanos-table td { padding: 7px 8px; }
-  .soberanos-table .col-ley { display: none; }
-  .soberanos-table .col-duration { display: none; }
-  .soberanos-table .col-vto { display: none; }
-  .soberanos-table td:nth-child(2) { display: none; }
-  .soberanos-table td:nth-child(5) { display: none; }
-  .soberanos-table td:nth-child(6) { display: none; }
-  /* CER table mobile - mostrar precio (columna 2) */
-  .cer-table td:nth-child(2) { display: table-cell !important; }
   .footer { padding: 24px 16px 40px; }
 }
