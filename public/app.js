@@ -920,9 +920,8 @@ function renderLecapScatter(items) {
   const canvas = document.getElementById('lecaps-scatter');
   if (!canvas || typeof Chart === 'undefined') return;
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)';
-  const textColor = isDark ? '#a0a0a8' : '#71717a';
+  const textColor = '#555555';
+  const gridColor = '#1a1a1a';
 
   const lecapData = items.filter(l => !l.ticker.startsWith('T'));
   const boncapData = items.filter(l => l.ticker.startsWith('T'));
@@ -951,8 +950,8 @@ function renderLecapScatter(items) {
         {
           label: 'LECAP',
           data: lecapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker })),
-          backgroundColor: '#059669',
-          borderColor: '#059669',
+          backgroundColor: '#00d26a',
+          borderColor: '#00d26a',
           pointRadius: 7,
           pointHoverRadius: 10,
           order: 1,
@@ -960,8 +959,8 @@ function renderLecapScatter(items) {
         {
           label: 'BONCAP',
           data: boncapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker })),
-          backgroundColor: '#3b82f6',
-          borderColor: '#3b82f6',
+          backgroundColor: '#4da6ff',
+          borderColor: '#4da6ff',
           pointRadius: 7,
           pointHoverRadius: 10,
           pointStyle: 'rectRounded',
@@ -1331,9 +1330,8 @@ function renderYieldCurve(items) {
   if (!canvas) return;
   if (soberanosChart) soberanosChart.destroy();
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
-  const textColor = isDark ? '#a0a0a8' : '#71717a';
+  const textColor = '#555555';
+  const gridColor = '#1a1a1a';
 
   const localBonds = items.filter(i => i.ley === 'local');
   const nyBonds = items.filter(i => i.ley === 'NY');
@@ -1352,8 +1350,8 @@ function renderYieldCurve(items) {
     datasets.push({
       label: 'Ley Local (curva)',
       data: localCurve,
-      borderColor: '#f97316',
-      borderWidth: 2.5,
+      borderColor: '#ff9500',
+      borderWidth: 1.5,
       borderDash: [6, 3],
       pointRadius: 0,
       pointHitRadius: 0,
@@ -1365,8 +1363,8 @@ function renderYieldCurve(items) {
     datasets.push({
       label: 'Ley NY (curva)',
       data: nyCurve,
-      borderColor: '#3b82f6',
-      borderWidth: 2.5,
+      borderColor: '#4da6ff',
+      borderWidth: 1.5,
       borderDash: [6, 3],
       pointRadius: 0,
       pointHitRadius: 0,
@@ -1378,8 +1376,8 @@ function renderYieldCurve(items) {
   datasets.push({
     label: 'Ley Local',
     data: localBonds.map(i => ({ x: i.duration, y: i.ytm, label: i.symbol })),
-    backgroundColor: '#f97316',
-    borderColor: '#ea580c',
+    backgroundColor: '#ff9500',
+    borderColor: '#ff9500',
     borderWidth: 1.5,
     pointRadius: 7,
     pointHoverRadius: 9,
@@ -1390,8 +1388,8 @@ function renderYieldCurve(items) {
   datasets.push({
     label: 'Ley NY',
     data: nyBonds.map(i => ({ x: i.duration, y: i.ytm, label: i.symbol })),
-    backgroundColor: '#3b82f6',
-    borderColor: '#2563eb',
+    backgroundColor: '#4da6ff',
+    borderColor: '#4da6ff',
     borderWidth: 1.5,
     pointRadius: 7,
     pointHoverRadius: 9,
@@ -1615,11 +1613,10 @@ async function loadMundoChart(id, name, range) {
     if (!points.length) return;
 
     const isUp = points[points.length - 1].v >= points[0].v;
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const lineColor = isUp ? '#34d399' : '#f87171';
-    const bgColor = isUp ? 'rgba(52,211,153,0.1)' : 'rgba(248,113,113,0.1)';
-    const textColor = isDark ? '#a0a0a8' : '#71717a';
-    const gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    const lineColor = isUp ? '#00d26a' : '#ff3b3b';
+    const bgColor = isUp ? 'rgba(0,210,106,0.1)' : 'rgba(255,59,59,0.1)';
+    const textColor = '#555555';
+    const gridColor = '#1a1a1a';
 
     mundoDetailChart = new Chart(ctx, {
       type: 'line',
@@ -1960,9 +1957,8 @@ function renderCERCurve(items) {
   if (!canvas) return;
   if (cerChart) cerChart.destroy();
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
-  const textColor = isDark ? '#a0a0a8' : '#71717a';
+  const textColor = '#555555';
+  const gridColor = '#1a1a1a';
 
   // Polynomial regression curve (degree 2, 300 points for smoothness)
   const points = items.map(i => [i.duration, i.ytm]);
@@ -1974,8 +1970,8 @@ function renderCERCurve(items) {
     datasets.push({
       label: 'Bonos CER (curva)',
       data: curve,
-      borderColor: '#22c55e',
-      borderWidth: 2.5,
+      borderColor: '#ff9500',
+      borderWidth: 1.5,
       borderDash: [6, 3],
       pointRadius: 0,
       pointHitRadius: 0,
@@ -1987,8 +1983,8 @@ function renderCERCurve(items) {
   datasets.push({
     label: 'Bonos CER',
     data: items.map(i => ({ x: i.duration, y: i.ytm, label: i.symbol })),
-    backgroundColor: '#22c55e',
-    borderColor: '#16a34a',
+    backgroundColor: '#00d26a',
+    borderColor: '#00d26a',
     borderWidth: 1.5,
     pointRadius: 7,
     pointHoverRadius: 9,
@@ -2101,26 +2097,25 @@ function renderONsYieldCurve(items) {
   const canvas = document.getElementById('ons-scatter');
   if (!canvas) return;
   if (onsChart) onsChart.destroy();
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = isDark ? '#a0a0a8' : '#6b7280';
-  const gridColor = isDark ? '#2a2a30' : '#e5e7eb';
+  const textColor = '#555555';
+  const gridColor = '#1a1a1a';
   const points = items.map(i => ({ x: i.duration, y: i.ytm, label: i.d912Ticker }));
   const curvePoints = points.length >= 3 ? fitPolyCurve(points.map(p => [p.x, p.y]), 2, 200) : [];
   const datasets = [{
-    label: 'ONs', data: points, backgroundColor: '#f97316', borderColor: '#f97316',
-    pointRadius: 6, pointHoverRadius: 8, showLine: false,
+    label: 'ONs', data: points, backgroundColor: '#00d26a', borderColor: '#00d26a',
+    pointRadius: 5, pointHoverRadius: 7, showLine: false,
   }];
   if (curvePoints.length > 0) {
     datasets.push({
-      label: 'Curva', data: curvePoints, borderColor: '#f97316', borderWidth: 2,
-      borderDash: [6, 3], pointRadius: 0, showLine: true, tension: 0, fill: false,
+      label: 'Curva', data: curvePoints, borderColor: '#ff9500', borderWidth: 1.5,
+      borderDash: [4, 3], pointRadius: 0, showLine: true, tension: 0, fill: false,
     });
   }
   onsChart = new Chart(canvas, {
     type: 'scatter', data: { datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => { const p = ctx.raw; return p.label ? `${p.label}: ${p.y.toFixed(2)}%` : `${p.y.toFixed(2)}%`; } } } },
+      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a1a', titleColor: '#ff9500', bodyColor: '#e0e0e0', borderColor: '#333', borderWidth: 1, callbacks: { label: ctx => { const p = ctx.raw; return p.label ? `${p.label}: ${p.y.toFixed(2)}%` : `${p.y.toFixed(2)}%`; } } } },
       scales: {
         x: { type: 'linear', title: { display: true, text: 'Duration (años)', color: textColor }, grid: { color: gridColor }, ticks: { color: textColor } },
         y: { type: 'linear', title: { display: true, text: 'TIR (%)', color: textColor }, grid: { color: gridColor }, ticks: { color: textColor, callback: v => v.toFixed(1) + '%' } }
@@ -2551,10 +2546,9 @@ function getHoldingValue(holding, config) {
 
 function fmtMoney(amount, currency) {
   const sym = currency === 'USD' ? 'US$' : '$';
-  // Use compact notation for very large numbers
   if (Math.abs(amount) >= 1e9) return sym + (amount / 1e9).toLocaleString('es-AR', {minimumFractionDigits:1, maximumFractionDigits:1}) + 'B';
   if (Math.abs(amount) >= 1e6) return sym + (amount / 1e6).toLocaleString('es-AR', {minimumFractionDigits:1, maximumFractionDigits:1}) + 'M';
-  return sym + amount.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
+  return sym + amount.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
 }
 
 function renderPortfolioSummary(config) {
@@ -3027,9 +3021,8 @@ function renderCashflowChart(months) {
   if (!canvas) return;
   if (_cashflowChart) _cashflowChart.destroy();
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
-  const textColor = isDark ? '#a0a0a8' : '#71717a';
+  const textColor = '#555555';
+  const gridColor = '#1a1a1a';
   const monthNames = MONTH_NAMES;
   const labels = Object.keys(months).map(k => { const [y,m] = k.split('-'); return `${monthNames[parseInt(m)-1]} ${y}`; });
   const usdData = Object.values(months).map(m => m.usd);
@@ -3040,8 +3033,8 @@ function renderCashflowChart(months) {
     data: {
       labels,
       datasets: [
-        { label: 'USD', data: usdData, backgroundColor: '#3b82f6', yAxisID: 'yUSD', borderRadius: 4 },
-        { label: 'ARS', data: arsData, backgroundColor: '#22c55e', yAxisID: 'yARS', borderRadius: 4 },
+        { label: 'USD', data: usdData, backgroundColor: '#4da6ff', yAxisID: 'yUSD', borderRadius: 2 },
+        { label: 'ARS', data: arsData, backgroundColor: '#00d26a', yAxisID: 'yARS', borderRadius: 2 },
       ]
     },
     options: {
