@@ -1567,10 +1567,7 @@ async function loadMundo() {
     });
 
     const src = document.getElementById('mundo-source');
-    if (src) {
-      const time = new Date(updated).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-      src.textContent = `Fuente: Yahoo Finance — Actualizado: ${time}`;
-    }
+    if (src) src.textContent = '';
   } catch (e) {
     grid.innerHTML = '<div class="loading">Error al cargar datos globales.</div>';
     console.error('Mundo error:', e);
@@ -2120,15 +2117,13 @@ async function loadONs() {
 
 function renderONsTable(container, items) {
   let html = `<div style="overflow-x:auto"><table class="soberanos-table">
-    <thead><tr><th>TICKER</th><th>EMISOR</th><th>PRECIO</th><th>PARIDAD</th><th class="col-duration">DURATION</th><th class="col-vto">VENCIMIENTO</th><th>TIR</th></tr></thead><tbody>`;
+    <thead><tr><th>TICKER</th><th>EMISOR</th><th>PRECIO</th><th class="col-duration">DURATION</th><th class="col-vto">VENCIMIENTO</th><th>TIR</th></tr></thead><tbody>`;
   for (const item of items) {
     const tirColor = item.ytm >= 0 ? 'var(--green)' : 'var(--red)';
-    const paridad = item.priceUSD;
     html += `<tr class="on-row" data-symbol="${item.symbol}" style="cursor:pointer">
       <td><strong style="color:var(--accent)">${item.d912Ticker}</strong></td>
       <td style="font-size:0.8rem;color:var(--text-secondary)">${item.nombre || ''}</td>
       <td style="font-family:var(--font-mono);text-align:right">$${item.priceUSD.toFixed(2)}</td>
-      <td style="font-family:var(--font-mono);text-align:right">${paridad.toFixed(1)}%</td>
       <td class="col-duration" style="font-family:var(--font-mono);text-align:right">${item.duration.toFixed(2)}</td>
       <td class="col-vto">${item.vencimiento}</td>
       <td class="lecap-tir" style="text-align:right">${item.ytm.toFixed(2)}%</td></tr>`;
