@@ -111,14 +111,14 @@ function setupThemeToggle() {
 
   const btn = document.getElementById('theme-toggle');
   if (!btn) return;
-  btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+  btn.innerHTML = theme === 'dark' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
 
   btn.addEventListener('click', () => {
     const current = document.documentElement.getAttribute('data-theme');
     const next = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
-    btn.textContent = next === 'dark' ? '☀️' : '🌙';
+    btn.innerHTML = next === 'dark' ? '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>' : '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>';
   });
 }
 
@@ -882,7 +882,7 @@ async function loadLecaps() {
           <tbody>${rows}</tbody>
         </table>
       </div>
-      <p class="calc-hint">💡 <span>Click</span> en cualquier LECAP para abrir la calculadora</p>
+      <p class="calc-hint"><svg class="icon-hint" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <span>Click</span> en cualquier LECAP para abrir la calculadora</p>
       <p style="font-size:0.7rem;color:var(--text-tertiary);margin-top:6px">Liquidación T+1: ${settlStr}. Los días al vencimiento se calculan desde la fecha de liquidación.</p>`;
 
     // Make table sortable
@@ -1221,7 +1221,7 @@ function renderSoberanosTable(container, items) {
         <tbody>${rows}</tbody>
       </table>
     </div>
-    <p class="calc-hint">📊 Click en cualquier bono para abrir la calculadora</p>
+    <p class="calc-hint"><svg class="icon-hint" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Click en cualquier bono para abrir la calculadora</p>
     <p style="font-size:0.7rem;color:var(--text-tertiary);margin-top:6px">
       TIR (YTM) calculada con flujos de fondos futuros descontados. Duration en años (Macaulay).
     </p>`;
@@ -2042,7 +2042,7 @@ function renderCERTable(container, items) {
   }).join('');
 
   container.innerHTML = `
-    <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px">📊 Click en un bono para abrir la calculadora</p>
+    <p style="font-size:0.78rem;color:var(--text-secondary);margin-bottom:8px"><svg class="icon-hint" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> Click en un bono para abrir la calculadora</p>
     <div class="soberanos-table-wrap">
       <table class="soberanos-table cer-table">
         <thead>
@@ -2300,7 +2300,7 @@ function renderONsTable(container, items) {
       <td class="col-vto">${item.vencimiento}</td>
       <td class="lecap-tir" style="text-align:right">${item.ytm.toFixed(2)}%</td></tr>`;
   }
-  html += '</tbody></table></div><p class="calc-hint">💡 <span>Click</span> en cualquier ON para abrir la calculadora</p>';
+  html += '</tbody></table></div><p class="calc-hint"><svg class="icon-hint" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg> <span>Click</span> en cualquier ON para abrir la calculadora</p>';
   container.innerHTML = html;
   // Make sortable
   const table = container.querySelector('.soberanos-table');
@@ -2603,15 +2603,16 @@ function openLecapCalculator(item) {
 
 const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+const _icon = (d, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
 const ASSET_TYPES = {
-  soberano: { label: 'Soberanos', emoji: '🏛️', currency: 'USD', qtyLabel: 'Valor Nominal (VN)' },
-  on: { label: 'ONs', emoji: '🏢', currency: 'USD', qtyLabel: 'Valor Nominal (VN)' },
-  cer: { label: 'Bonos CER', emoji: '📊', currency: 'ARS', qtyLabel: 'Valor Nominal (VN)' },
-  lecap: { label: 'LECAPs', emoji: '📈', currency: 'ARS', qtyLabel: 'Valor Nominal (VN)' },
-  fci: { label: 'FCIs', emoji: '💰', currency: 'ARS', qtyLabel: 'Cuotapartes' },
-  garantizado: { label: 'Billeteras', emoji: '🏦', currency: 'ARS', qtyLabel: 'Monto (ARS)' },
-  cash: { label: 'Cash', emoji: '💵', currency: 'USD', qtyLabel: 'Monto' },
-  custom: { label: 'Otro', emoji: '⭐', currency: 'USD', qtyLabel: 'Cantidad' },
+  soberano: { label: 'Soberanos', emoji: _icon('<path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M8 10v11M12 10v11M16 10v11M20 10v11"/>'), currency: 'USD', qtyLabel: 'Valor Nominal (VN)' },
+  on: { label: 'ONs', emoji: _icon('<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="15" y2="14"/>'), currency: 'USD', qtyLabel: 'Valor Nominal (VN)' },
+  cer: { label: 'Bonos CER', emoji: _icon('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'), currency: 'ARS', qtyLabel: 'Valor Nominal (VN)' },
+  lecap: { label: 'LECAPs', emoji: _icon('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'), currency: 'ARS', qtyLabel: 'Valor Nominal (VN)' },
+  fci: { label: 'FCIs', emoji: _icon('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>'), currency: 'ARS', qtyLabel: 'Cuotapartes' },
+  garantizado: { label: 'Billeteras', emoji: _icon('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M6 14h.01"/><path d="M10 14h.01"/>'), currency: 'ARS', qtyLabel: 'Monto (ARS)' },
+  cash: { label: 'Cash', emoji: _icon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), currency: 'USD', qtyLabel: 'Monto' },
+  custom: { label: 'Otro', emoji: _icon('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'), currency: 'USD', qtyLabel: 'Cantidad' },
 };
 
 // ─── PPP & Operations helpers ───
@@ -2792,8 +2793,8 @@ function renderPortfolioGreeting() {
   if (hour >= 6 && hour < 12) saludo = 'Buenos días';
   else if (hour >= 12 && hour < 19) saludo = 'Buenas tardes';
   el.innerHTML = `
-    <h2 style="font-size:1.6rem;margin:0">${saludo}, ${name} 👋</h2>
-    <p style="color:var(--text-tertiary);font-size:0.82rem;margin-top:4px">Gracias por usar rendimientos.co — hecho con mucho ❤️ desde Argentina 🇦🇷. Parece que HTML funciona 😂</p>`;
+    <h2 style="font-size:1.6rem;margin:0">${saludo}, ${name}</h2>
+    <p style="color:var(--text-tertiary);font-size:0.82rem;margin-top:4px">Gracias por usar rendimientos.co — hecho con mucho <svg style="display:inline-block;vertical-align:middle" width="12" height="12" viewBox="0 0 24 24" fill="var(--red, #e74c3c)" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> desde Argentina.</p>`;
 }
 
 function renderPortfolioTCToggle(config) {
@@ -2935,7 +2936,7 @@ function renderPortfolioHoldings(config) {
   if (_portfolioHoldings.length === 0) {
     container.innerHTML = `
       <div class="portfolio-empty">
-        <div class="emoji">📭</div>
+        <div class="emoji"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V21H3V8"/><path d="M23 3H1v5h22V3z"/><path d="M10 12h4"/></svg></div>
         <p>No tenés activos en tu portfolio.</p>
         <p style="margin-top:8px;font-size:0.8rem">Hacé click en <strong>+ Agregar activo</strong> para empezar.</p>
       </div>`;
@@ -2964,8 +2965,8 @@ function renderPortfolioHoldings(config) {
       <td style="color:${pnlColor};font-weight:600">${pnlStr}</td>
       <td style="font-weight:700">${valueStr}</td>
       <td class="col-actions">
-        <button onclick="openOperationsModal('${h.id}')" title="Operaciones">➕</button>
-        <button onclick="deleteHolding('${h.id}')" title="Eliminar">🗑️</button>
+        <button onclick="openOperationsModal('${h.id}')" title="Operaciones"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
+        <button onclick="deleteHolding('${h.id}')" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
       </td>
     </tr>`;
   }).join('');

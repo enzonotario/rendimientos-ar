@@ -936,6 +936,14 @@ body {
   background: var(--border);
 }
 
+.theme-toggle svg,
+.flag svg,
+.icon-logo,
+.icon-hint {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 /* Subnav */
 .subnav {
   background: var(--card-bg);

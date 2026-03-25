@@ -6,7 +6,7 @@ Rendimientos AR - Sitio para comparar rendimientos de productos financieros en A
 
 ## Stack
 
-- **Frontend**: Vanilla JS + CSS (no framework), Chart.js para graficos
+- **Frontend**: Vanilla JS + CSS (no framework), Chart.js para graficos, SVG inline icons (Lucide/Feather style)
 - **Backend**: Express.js (local dev), Netlify Functions (prod)
 - **Auth + DB**: Supabase (Google OAuth, PostgreSQL con RLS)
 - **Datos**: ArgentinaDatos API (FCIs, Plazo Fijo), data912 (LECAPs, Bonos, ONs), Yahoo Finance (Monitor Global), Google News RSS
@@ -58,6 +58,7 @@ Nota: Las Netlify functions (mundo, soberanos, news, etc) solo funcionan en prod
 ## Reglas
 
 - Mantener el sitio vanilla (sin frameworks JS/CSS)
+- No usar emojis en la UI — usar SVGs inline (estilo Lucide/Feather, stroke-based). Helper `_icon()` en app.js para generar iconos.
 - Respetar el sistema de temas dark/light con CSS variables
 - Los logos de bancos vienen de BCRA (http -> siempre upgradar a https)
 - Los datos de billeteras/cuentas remuneradas son manuales en config.json
