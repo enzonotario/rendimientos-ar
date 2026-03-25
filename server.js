@@ -273,6 +273,42 @@ app.get('/api/cer-precios', async (req, res) => {
   }
 });
 
+// --- Hot US Movers (Yahoo Finance proxy) ---
+
+app.get('/api/hot-movers', async (req, res) => {
+  const POOL = [
+    'AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','AMD','NFLX','COIN',
+    'PLTR','SMCI','MSTR','AVGO','CRM','UBER','SNOW','SQ','SHOP','RIVN',
+    'SOFI','HOOD','INTC','BA','DIS','NKE','PYPL','BABA','JPM','V',
+  ];
+
+  try {
+    const results = await Promise.allSettled(POOL.map(async (symbol) => {
+      const r = await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`, {
+        headers: { 'User-Agent': 'Mozilla/5.0' },
+      });
+      const json = await r.json();
+      const result = json.chart.result[0];
+      const meta = result.meta;
+      const price = meta.regularMarketPrice;
+      const prevClose = meta.chartPreviousClose || meta.previousClose || 0;
+      const change = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+      return { symbol: meta.symbol || symbol, name: meta.shortName || meta.longName || symbol, price, change: Math.round(change * 100) / 100 };
+    }));
+
+    const data = results
+      .map(r => r.status === 'fulfilled' ? r.value : null)
+      .filter(q => q && q.price != null && q.change != null)
+      .sort((a, b) => Math.abs(b.change) - Math.abs(a.change))
+      .slice(0, 5);
+
+    res.json({ data, updated: new Date().toISOString() });
+  } catch (err) {
+    console.error('Hot movers proxy error:', err.message);
+    res.status(502).json({ error: 'Failed to fetch hot movers data' });
+  }
+});
+
 app.listen(PORT, () => {
   console.log(`Server running at http://localhost:${PORT}`);
 });

@@ -29,6 +29,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/hot-movers"
+  to = "/.netlify/functions/hot-movers"
+  status = 200
+
+[[redirects]]
   from = "/api/news"
   to = "/.netlify/functions/news"
   status = 200

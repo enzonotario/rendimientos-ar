@@ -92,6 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupTabs();
   setupKeyboardNav();
   loadMundo();
+  loadHotMovers();
   loadNewsTicker();
   initSupabase();
 
@@ -560,6 +561,7 @@ function setupTabs() {
     updatePageTitle('mundo');
     if (!document.getElementById('mundo-grid').hasChildNodes()) {
       loadMundo();
+      loadHotMovers();
     }
   }
 
@@ -1574,10 +1576,110 @@ async function loadMundo() {
   }
 }
 
+// ─── Hot US Movers ───
+
+async function loadHotMovers() {
+  const grid = document.getElementById('hot-grid');
+  if (!grid) return;
+  grid.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando movers...</p></div>`;
+
+  try {
+    const res = await fetch('/api/hot-movers');
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const { data } = await res.json();
+
+    if (!data || !data.length) {
+      grid.innerHTML = '<div class="loading">Sin datos de movers disponibles.</div>';
+      return;
+    }
+
+    grid.innerHTML = '';
+    data.forEach((item, i) => {
+      const isUp = item.change >= 0;
+      const changeColor = isUp ? 'var(--green)' : 'var(--red)';
+      const arrow = isUp ? '▲' : '▼';
+      const sign = isUp ? '+' : '';
+
+      const card = document.createElement('div');
+      card.className = 'hot-card';
+      card.style.cursor = 'pointer';
+      card.addEventListener('click', () => openMundoDetail(item.symbol.toLowerCase(), item.name, '', item.symbol));
+      card.innerHTML = `
+        <div class="hot-rank">${i + 1}</div>
+        <div class="hot-info">
+          <div class="hot-symbol">${item.symbol}</div>
+          <div class="hot-name">${item.name}</div>
+        </div>
+        <div class="hot-price">$${item.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+        <div class="hot-change" style="color:${changeColor}">
+          <span class="hot-arrow">${arrow}</span>
+          <span>${sign}${item.change.toFixed(2)}%</span>
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  } catch (e) {
+    grid.innerHTML = '<div class="loading">Error al cargar movers.</div>';
+    console.error('Hot movers error:', e);
+  }
+}
+
 // ─── Mundo Detail Modal ───
 let mundoDetailChart = null;
+let mundoDetailPoints = [];
 
-async function openMundoDetail(id, name, icon) {
+function formatChartPrice(val) {
+  if (val >= 10000) return val.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (val >= 100) return val.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  return val.toLocaleString('en-US', { maximumFractionDigits: 4 });
+}
+
+function updateMundoHeader(points, hoveredIndex) {
+  const priceEl = document.getElementById('mundo-modal-price');
+  const changeEl = document.getElementById('mundo-modal-change');
+  const dateEl = document.getElementById('mundo-modal-date');
+  if (!priceEl || !points.length) return;
+
+  const first = points[0].v;
+  const current = hoveredIndex != null ? points[hoveredIndex].v : points[points.length - 1].v;
+  const diff = current - first;
+  const pct = first ? (diff / first) * 100 : 0;
+  const isUp = diff >= 0;
+  const sign = isUp ? '+' : '';
+  const color = isUp ? 'var(--green)' : 'var(--red)';
+
+  priceEl.textContent = formatChartPrice(current);
+
+  changeEl.style.color = color;
+  changeEl.textContent = `${sign}${formatChartPrice(diff)} (${sign}${pct.toFixed(2)}%)`;
+
+  if (hoveredIndex != null) {
+    const d = new Date(points[hoveredIndex].t);
+    dateEl.textContent = d.toLocaleString('es-AR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  } else {
+    dateEl.textContent = '';
+  }
+}
+
+// Crosshair plugin for Chart.js
+const crosshairPlugin = {
+  id: 'crosshair',
+  afterDraw(chart) {
+    if (chart._crosshairX == null) return;
+    const { ctx, chartArea: { top, bottom } } = chart;
+    ctx.save();
+    ctx.beginPath();
+    ctx.setLineDash([4, 3]);
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = 'rgba(150,150,150,0.6)';
+    ctx.moveTo(chart._crosshairX, top);
+    ctx.lineTo(chart._crosshairX, bottom);
+    ctx.stroke();
+    ctx.restore();
+  }
+};
+
+async function openMundoDetail(id, name, icon, ticker) {
   // Remove existing modal
   const existing = document.getElementById('mundo-modal');
   if (existing) existing.remove();
@@ -1588,14 +1690,23 @@ async function openMundoDetail(id, name, icon) {
   modal.innerHTML = `
     <div class="mundo-modal">
       <div class="mundo-modal-header">
-        <span class="mundo-modal-title">${icon} ${name}</span>
-        <div class="mundo-modal-tabs">
-          <button class="mundo-range-btn active" data-range="1d">1D</button>
-          <button class="mundo-range-btn" data-range="5d">5D</button>
-          <button class="mundo-range-btn" data-range="1mo">1M</button>
-          <button class="mundo-range-btn" data-range="3mo">3M</button>
+        <div class="mundo-modal-header-left">
+          <span class="mundo-modal-title">${icon ? icon + ' ' : ''}${name}</span>
+          <div class="mundo-modal-price-row">
+            <span class="mundo-modal-price" id="mundo-modal-price">-</span>
+            <span class="mundo-modal-change" id="mundo-modal-change"></span>
+          </div>
+          <span class="mundo-modal-date" id="mundo-modal-date"></span>
         </div>
-        <button class="mundo-modal-close">&times;</button>
+        <div class="mundo-modal-header-right">
+          <div class="mundo-modal-tabs">
+            <button class="mundo-range-btn active" data-range="1d">1D</button>
+            <button class="mundo-range-btn" data-range="5d">5D</button>
+            <button class="mundo-range-btn" data-range="1mo">1M</button>
+            <button class="mundo-range-btn" data-range="3mo">3M</button>
+          </div>
+          <button class="mundo-modal-close">&times;</button>
+        </div>
       </div>
       <div class="mundo-modal-body">
         <canvas id="mundo-detail-chart"></canvas>
@@ -1609,24 +1720,29 @@ async function openMundoDetail(id, name, icon) {
   modal.querySelector('.mundo-modal-close').addEventListener('click', () => modal.remove());
   modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
+  // Build fetch URL helper
+  const buildUrl = (range) => ticker
+    ? `/api/mundo?ticker=${encodeURIComponent(ticker)}&name=${encodeURIComponent(name)}&range=${range}`
+    : `/api/mundo?symbol=${id}&range=${range}`;
+
   // Range buttons
   modal.querySelectorAll('.mundo-range-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       modal.querySelectorAll('.mundo-range-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
-      loadMundoChart(id, name, btn.dataset.range);
+      loadMundoChart(buildUrl, btn.dataset.range);
     });
   });
 
-  loadMundoChart(id, name, '1d');
+  loadMundoChart(buildUrl, '1d');
 }
 
-async function loadMundoChart(id, name, range) {
+async function loadMundoChart(buildUrl, range) {
   const loading = document.getElementById('mundo-modal-loading');
   if (loading) loading.style.display = 'block';
 
   try {
-    const res = await fetch(`/api/mundo?symbol=${id}&range=${range}`);
+    const res = await fetch(buildUrl(range));
     if (!res.ok) throw new Error('API error');
     const data = await res.json();
 
@@ -1639,13 +1755,15 @@ async function loadMundoChart(id, name, range) {
     if (mundoDetailChart) mundoDetailChart.destroy();
 
     const points = data.points || [];
+    mundoDetailPoints = points;
     if (!points.length) return;
+
+    // Update header with default (last point)
+    updateMundoHeader(points, null);
 
     const isUp = points[points.length - 1].v >= points[0].v;
     const lineColor = isUp ? '#00d26a' : '#ff3b3b';
-    const bgColor = isUp ? 'rgba(0,210,106,0.1)' : 'rgba(255,59,59,0.1)';
-    const textColor = '#555555';
-    const gridColor = '#1a1a1a';
+    const bgColor = isUp ? 'rgba(0,210,106,0.08)' : 'rgba(255,59,59,0.08)';
 
     mundoDetailChart = new Chart(ctx, {
       type: 'line',
@@ -1657,37 +1775,42 @@ async function loadMundoChart(id, name, range) {
           backgroundColor: bgColor,
           borderWidth: 2,
           pointRadius: 0,
-          pointHitRadius: 10,
+          pointHoverRadius: 5,
+          pointHoverBackgroundColor: lineColor,
+          pointHoverBorderColor: '#fff',
+          pointHoverBorderWidth: 2,
           fill: true,
           tension: 0.3,
         }]
       },
+      plugins: [crosshairPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
         animation: { duration: 300 },
         interaction: { intersect: false, mode: 'index' },
+        onHover: (event, elements, chart) => {
+          if (elements.length > 0) {
+            const idx = elements[0].index;
+            chart._crosshairX = elements[0].element.x;
+            updateMundoHeader(mundoDetailPoints, idx);
+          } else {
+            chart._crosshairX = null;
+            updateMundoHeader(mundoDetailPoints, null);
+          }
+          chart.draw();
+        },
         plugins: {
           legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: (items) => {
-                const ts = points[items[0].dataIndex].t;
-                return new Date(ts).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-              },
-              label: (item) => {
-                const val = item.raw;
-                return val >= 1000 ? val.toLocaleString('es-AR', { maximumFractionDigits: 0 }) : val.toFixed(4);
-              }
-            }
-          }
+          tooltip: { enabled: false },
         },
         scales: {
           x: {
             display: true,
             ticks: {
-              color: textColor,
+              color: 'var(--text-tertiary)',
               maxTicksLimit: 6,
+              font: { size: 11 },
               callback: function(val, index) {
                 const ts = points[index]?.t;
                 if (!ts) return '';
@@ -1696,15 +1819,22 @@ async function loadMundoChart(id, name, range) {
                 return d.toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
               }
             },
-            grid: { color: gridColor },
+            grid: { color: 'rgba(150,150,150,0.08)' },
           },
           y: {
             display: true,
-            ticks: { color: textColor, maxTicksLimit: 5 },
-            grid: { color: gridColor },
+            ticks: { color: 'var(--text-tertiary)', maxTicksLimit: 5, font: { size: 11 } },
+            grid: { color: 'rgba(150,150,150,0.08)' },
           }
         }
       }
+    });
+
+    // Reset crosshair on mouse leave
+    canvas.addEventListener('mouseleave', () => {
+      mundoDetailChart._crosshairX = null;
+      updateMundoHeader(mundoDetailPoints, null);
+      mundoDetailChart.draw();
     });
   } catch (e) {
     if (loading) loading.textContent = 'Error al cargar datos.';

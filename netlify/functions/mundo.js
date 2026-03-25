@@ -4,8 +4,10 @@ const https = require('https');
 const SYMBOLS = [
   { id: 'spx', symbol: 'ES%3DF', name: 'S&P 500', icon: '📈' },
   { id: 'nasdaq', symbol: 'NQ%3DF', name: 'Nasdaq 100', icon: '💻' },
-  { id: 'oil', symbol: 'CL%3DF', name: 'Petróleo WTI', icon: '🛢️' },
+  { id: 'dow', symbol: 'YM%3DF', name: 'Dow Jones', icon: '🏦' },
   { id: 'tnx', symbol: '%5ETNX', name: 'Tasa 10Y USA', icon: '🏛️' },
+  { id: 'oil', symbol: 'CL%3DF', name: 'Petróleo WTI', icon: '🛢️' },
+  { id: 'brent', symbol: 'BZ%3DF', name: 'Petróleo Brent', icon: '🛢️' },
   { id: 'gold', symbol: 'GC%3DF', name: 'Oro', icon: '🥇' },
   { id: 'btc', symbol: 'BTC-USD', name: 'Bitcoin', icon: '₿' },
   { id: 'eth', symbol: 'ETH-USD', name: 'Ethereum', icon: 'Ξ' },
@@ -73,25 +75,39 @@ function fetchYahooChart(symbolEncoded, interval, range) {
 }
 
 exports.handler = async (event) => {
-  // Detail mode: /api/mundo?symbol=BTC-USD&range=5d
+  // Detail mode: /api/mundo?symbol=btc&range=5d  OR  /api/mundo?ticker=AAPL&range=5d
   const qs = event.queryStringParameters || {};
-  if (qs.symbol) {
+  if (qs.symbol || qs.ticker) {
     try {
-      const sym = SYMBOLS.find(s => s.id === qs.symbol);
-      if (!sym) return { statusCode: 404, body: JSON.stringify({ error: 'Unknown symbol' }) };
+      let symEncoded, id, name, icon;
+      if (qs.ticker) {
+        // Direct Yahoo ticker (used by HOT movers)
+        const ticker = qs.ticker.toUpperCase();
+        symEncoded = encodeURIComponent(ticker);
+        id = ticker.toLowerCase();
+        name = qs.name || ticker;
+        icon = '';
+      } else {
+        const sym = SYMBOLS.find(s => s.id === qs.symbol);
+        if (!sym) return { statusCode: 404, body: JSON.stringify({ error: 'Unknown symbol' }) };
+        symEncoded = sym.symbol;
+        id = sym.id;
+        name = sym.name;
+        icon = sym.icon;
+      }
       let range = qs.range || '5d';
       let interval = range === '1d' ? '5m' : range === '5d' ? '15m' : range === '1mo' ? '1h' : '1d';
-      let points = await fetchYahooChart(sym.symbol, interval, range);
+      let points = await fetchYahooChart(symEncoded, interval, range);
       // Fallback: if 1d returns empty (market closed/weekend), try 5d
       if (points.length === 0 && range === '1d') {
         range = '5d';
         interval = '15m';
-        points = await fetchYahooChart(sym.symbol, interval, range);
+        points = await fetchYahooChart(symEncoded, interval, range);
       }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' },
-        body: JSON.stringify({ id: sym.id, name: sym.name, icon: sym.icon, range, points }),
+        body: JSON.stringify({ id, name, icon, range, points }),
       };
     } catch (e) {
       return { statusCode: 500, body: JSON.stringify({ error: e.message }) };

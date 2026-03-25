@@ -180,21 +180,58 @@ body {
 }
 .mundo-modal-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: space-between;
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
   gap: 12px;
 }
-.mundo-modal-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: var(--text);
+.mundo-modal-header-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.mundo-modal-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   flex-shrink: 0;
+}
+.mundo-modal-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.mundo-modal-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.mundo-modal-price {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--text);
+  font-family: var(--font);
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+}
+.mundo-modal-change {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.mundo-modal-date {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  height: 14px;
+  visibility: visible;
+}
+.mundo-modal-date:empty {
+  visibility: hidden;
 }
 .mundo-modal-tabs {
   display: flex;
   gap: 4px;
-  margin-left: auto;
 }
 .mundo-range-btn {
   background: var(--bg-subtle);
@@ -1355,6 +1392,82 @@ body {
   min-width: 55px;
 }
 .mundo-arrow {
+  font-size: 0.7rem;
+}
+
+/* Hot US Movers */
+.hot-title {
+  font-size: 1.1rem;
+  font-weight: 800;
+  margin: 18px 0 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.hot-subtitle {
+  font-size: 0.78rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+}
+.hot-grid {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+.hot-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 0;
+  min-width: 220px;
+  flex-shrink: 0;
+}
+.hot-card:hover {
+  border-color: var(--accent);
+}
+.hot-rank {
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text-secondary);
+  min-width: 18px;
+}
+.hot-info {
+  flex: 1;
+  min-width: 0;
+}
+.hot-symbol {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.hot-name {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 120px;
+}
+.hot-price {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: var(--font);
+}
+.hot-change {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 0.85rem;
+  font-weight: 600;
+  flex-shrink: 0;
+  min-width: 55px;
+}
+.hot-arrow {
   font-size: 0.7rem;
 }
 
