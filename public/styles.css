@@ -1078,30 +1078,6 @@ body {
   border: 1.5px solid var(--accent);
 }
 
-/* First card in list — star treatment */
-.card-list .fund-card:first-child {
-  padding: 12px 14px;
-  border-left: 3px solid var(--accent);
-}
-
-.card-list .fund-card:first-child .rate-value {
-  font-size: 1.5rem;
-}
-
-.card-list .fund-card:first-child .fund-logo {
-  width: 36px;
-  height: 36px;
-  border-radius: 2px;
-}
-
-.card-list .fund-card:first-child .fund-logo img {
-  border-radius: 2px;
-}
-
-.card-list .fund-card:first-child .fund-name {
-  font-size: 0.9rem;
-  font-weight: 700;
-}
 
 /* Logo */
 .fund-logo {
