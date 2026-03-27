@@ -2,7 +2,7 @@
 // Fetches live data from internal APIs and uses it as context for Claude
 const https = require('https');
 
-function fetchJSON(url, timeout = 5000) {
+function fetchJSON(url, timeout = 10000) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
@@ -13,19 +13,19 @@ function fetchJSON(url, timeout = 5000) {
       res.on('data', c => data += c);
       res.on('end', () => {
         try { resolve(JSON.parse(data)); }
-        catch (e) { reject(new Error('Invalid JSON')); }
+        catch (e) { reject(new Error('Invalid JSON from ' + url)); }
       });
     });
     req.on('error', reject);
-    req.setTimeout(timeout, () => { req.destroy(); reject(new Error('timeout')); });
+    req.setTimeout(timeout, () => { req.destroy(); reject(new Error('timeout: ' + url)); });
   });
 }
 
 async function gatherContext() {
   const parts = [];
 
+  // 1. Cotizaciones (dólar, riesgo país)
   try {
-    // Cotizaciones
     const [bonds, riesgo, yahoo] = await Promise.allSettled([
       fetchJSON('https://data912.com/live/arg_bonds'),
       fetchJSON('https://api.argentinadatos.com/v1/finanzas/indices/riesgo-pais/ultimo'),
@@ -54,21 +54,23 @@ async function gatherContext() {
 
     if (oficial || ccl || mep || rp) {
       parts.push(`COTIZACIONES HOY:
-- Dólar Oficial: ${oficial ? '$' + oficial.toLocaleString('es-AR') : 'N/D'}
-- Dólar CCL (Contado con Liqui): ${ccl ? '$' + ccl.toLocaleString('es-AR') : 'N/D'}
-- Dólar MEP: ${mep ? '$' + mep.toLocaleString('es-AR') : 'N/D'}
+- Dólar Oficial: ${oficial ? '$' + oficial : 'N/D'}
+- Dólar CCL (Contado con Liqui): ${ccl ? '$' + ccl : 'N/D'}
+- Dólar MEP: ${mep ? '$' + mep : 'N/D'}
 - Riesgo País: ${rp || 'N/D'} puntos`);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.log('Context: cotizaciones error:', e.message);
+  }
 
+  // 2. Config: billeteras, cuentas, LECAPs, bonos CER, soberanos
   try {
-    // Config: billeteras y LECAPs
-    const config = await fetchJSON('https://rendimientos.co/api/config');
+    const config = await fetchJSON('https://rendimientos.co/config.json');
 
     if (config.garantizados) {
-      const activos = config.garantizados.filter(g => g.activo !== false).sort((a, b) => b.tna - a.tna).slice(0, 15);
-      const lines = activos.map(g => `- ${g.nombre} (${g.tipo}): TNA ${g.tna}% | Límite: ${g.limite || 'Sin límite'}`);
-      parts.push(`BILLETERAS Y CUENTAS REMUNERADAS (top 15 por TNA):\n${lines.join('\n')}`);
+      const activos = config.garantizados.filter(g => g.activo !== false).sort((a, b) => b.tna - a.tna);
+      const lines = activos.map(g => `- ${g.nombre} (${g.tipo}): TNA ${g.tna}% | Límite: ${g.limite || 'Sin límite'} | Vigente desde: ${g.vigente_desde || 'N/D'}`);
+      parts.push(`BILLETERAS Y CUENTAS REMUNERADAS:\n${lines.join('\n')}`);
     }
 
     if (config.especiales) {
@@ -80,21 +82,54 @@ async function gatherContext() {
     }
 
     if (config.lecaps) {
-      const lecaps = Object.entries(config.lecaps).map(([ticker, data]) => `- ${ticker}: vence ${data.vencimiento}, pago final ${data.pago_final}`);
-      parts.push(`LECAPs y BONCAPs:\n${lecaps.join('\n')}`);
+      const lecaps = Object.entries(config.lecaps).map(([ticker, data]) => {
+        const tipo = data.tipo || (ticker.startsWith('S') ? 'LECAP' : 'BONCAP');
+        return `- ${ticker} (${tipo}): vence ${data.vencimiento}, pago final $${data.pago_final} por cada $100 VN`;
+      });
+      parts.push(`LECAPs y BONCAPs (instrumentos de renta fija en pesos):\n${lecaps.join('\n')}`);
     }
-  } catch (e) {}
 
+    if (config.soberanos) {
+      const lines = Object.entries(config.soberanos).map(([ticker, data]) => {
+        return `- ${ticker}: Ley ${data.ley || 'N/D'}, vence ${data.vencimiento || 'N/D'}`;
+      });
+      parts.push(`BONOS SOBERANOS EN USD:\n${lines.join('\n')}`);
+    }
+
+    if (config.cer_bonds) {
+      const lines = Object.entries(config.cer_bonds).map(([ticker, data]) => {
+        return `- ${ticker}: vence ${data.vencimiento || 'N/D'}`;
+      });
+      parts.push(`BONOS CER (ajustan por inflación):\n${lines.join('\n')}`);
+    }
+  } catch (e) {
+    console.log('Context: config error:', e.message);
+  }
+
+  // 3. Plazo fijo
   try {
-    // Plazo fijo
     const pfData = await fetchJSON('https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijo');
     if (Array.isArray(pfData) && pfData.length > 0) {
       const top = pfData.sort((a, b) => b.tnaClientes - a.tnaClientes).slice(0, 10);
       const lines = top.map(p => `- ${p.entidad}: TNA ${p.tnaClientes}%`);
-      parts.push(`PLAZO FIJO (top 10, $100K a 30 días):\n${lines.join('\n')}`);
+      parts.push(`PLAZO FIJO (top 10 bancos, $100K a 30 días):\n${lines.join('\n')}`);
     }
-  } catch (e) {}
+  } catch (e) {
+    console.log('Context: plazo fijo error:', e.message);
+  }
 
+  // 4. LECAPs precios live
+  try {
+    const lecapData = await fetchJSON('https://data912.com/live/arg_lecap');
+    if (Array.isArray(lecapData) && lecapData.length > 0) {
+      const lines = lecapData.slice(0, 15).map(l => `- ${l.symbol}: precio $${l.c || l.last || 'N/D'}`);
+      parts.push(`PRECIOS LIVE LECAPs/BONCAPs:\n${lines.join('\n')}`);
+    }
+  } catch (e) {
+    console.log('Context: lecaps live error:', e.message);
+  }
+
+  console.log('Context gathered, parts:', parts.length, 'total chars:', parts.join('').length);
   return parts.join('\n\n');
 }
 
@@ -109,8 +144,10 @@ Tu rol:
 - Sé breve: respuestas de 2-4 oraciones salvo que el usuario pida más detalle.
 - Podés usar formato con bullets o negritas para mayor claridad.
 - Aclarás siempre que los datos son informativos y pueden tener delay.
+- Cuando hables de LECAPs/BONCAPs, mencioná el ticker, el vencimiento y el pago final.
+- Cuando compares billeteras, mencioná la TNA y el límite.
 
-IMPORTANTE: No inventes datos. Solo usá los que te proporciono en el contexto.`;
+IMPORTANTE: No inventes datos. Solo usá los que te proporciono en el contexto. Tenés datos reales y actualizados — usalos.`;
 
 exports.handler = async (event) => {
   const headers = {
@@ -120,7 +157,6 @@ exports.handler = async (event) => {
     'Access-Control-Allow-Headers': 'Content-Type',
   };
 
-  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 204, headers };
   }
@@ -140,7 +176,6 @@ exports.handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Message required' }) };
     }
 
-    // Rate limit: max message length
     if (message.length > 500) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Mensaje muy largo (máx 500 caracteres)' }) };
     }
@@ -148,12 +183,13 @@ exports.handler = async (event) => {
     // Gather live data context
     const context = await gatherContext();
 
-    const systemPrompt = `${SYSTEM_PROMPT}\n\nDATOS ACTUALES DE RENDIMIENTOS.CO (${new Date().toLocaleDateString('es-AR')}):\n\n${context}`;
+    const systemPrompt = `${SYSTEM_PROMPT}\n\nDATOS ACTUALES DE RENDIMIENTOS.CO (${new Date().toLocaleDateString('es-AR')}):\n\n${context || 'No se pudieron cargar datos en este momento.'}`;
+
+    console.log('System prompt length:', systemPrompt.length);
 
     // Build messages array
     const messages = [];
     if (Array.isArray(history)) {
-      // Only keep last 6 messages for context window management
       const recentHistory = history.slice(-6);
       for (const h of recentHistory) {
         if (h.role === 'user' || h.role === 'assistant') {
@@ -167,7 +203,7 @@ exports.handler = async (event) => {
     const reply = await new Promise((resolve, reject) => {
       const payload = JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
+        max_tokens: 800,
         system: systemPrompt,
         messages,
       });
