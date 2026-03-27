@@ -6,11 +6,14 @@ const POOL = [
   'AAPL','MSFT','GOOGL','AMZN','NVDA','META','TSLA','AMD','NFLX','COIN',
   'PLTR','SMCI','MSTR','AVGO','CRM','UBER','SNOW','SQ','SHOP','RIVN',
   'SOFI','HOOD','INTC','BA','DIS','NKE','PYPL','BABA','JPM','V',
+  'WMT','COST','MCD','PEP','KO','ABNB','RBLX','ROKU','SNAP','PINS',
+  'DELL','ORCL','IBM','GS','MS','C','WFC','BAC','XOM','CVX',
 ];
 
 function fetchQuote(symbol) {
   return new Promise((resolve, reject) => {
-    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=5d`;
+    // Use 2d range with 1d interval to get today vs yesterday's close
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=2d`;
     const req = https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, res => {
       let data = '';
       res.on('data', c => data += c);
@@ -20,7 +23,7 @@ function fetchQuote(symbol) {
           const result = json.chart.result[0];
           const meta = result.meta;
           const price = meta.regularMarketPrice;
-          const prevClose = meta.chartPreviousClose || meta.previousClose || 0;
+          const prevClose = meta.previousClose || meta.chartPreviousClose || 0;
           const change = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
           resolve({
             symbol: meta.symbol || symbol,
