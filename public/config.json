@@ -1417,7 +1417,7 @@
           "monto": 1.030082
         }
       ],
-      "nombre": "Banco Provincia"
+      "nombre": "Banco BBVA"
     },
     "BF40": {
       "ticker_d912": "BF40D",
@@ -1436,7 +1436,7 @@
           "monto": 1.024795
         }
       ],
-      "nombre": "Banco Provincia"
+      "nombre": "Banco BBVA"
     },
     "BVCO": {
       "ticker_d912": "BVCOD",
@@ -1677,7 +1677,7 @@
           "monto": 1.019696
         }
       ],
-      "nombre": "Forestal Argentina"
+      "nombre": "FyO"
     },
     "GN47": {
       "ticker_d912": "GN47D",
@@ -1979,7 +1979,7 @@
           "monto": 0.0852
         }
       ],
-      "nombre": "Loma Negra"
+      "nombre": "Aluar"
     },
     "LMS8": {
       "ticker_d912": "LMS8D",
@@ -2002,7 +2002,7 @@
           "monto": 0.25395
         }
       ],
-      "nombre": "Loma Negra"
+      "nombre": "Aluar"
     },
     "LOC5": {
       "ticker_d912": "LOC5D",
@@ -2269,7 +2269,7 @@
           "monto": 1.037397
         }
       ],
-      "nombre": "OLX"
+      "nombre": "Oldelval"
     },
     "PLC1": {
       "ticker_d912": "PLC1D",
@@ -2431,7 +2431,7 @@
           "monto": 1.017274
         }
       ],
-      "nombre": "Ternium"
+      "nombre": "Tarjeta Naranja"
     },
     "TSC4": {
       "ticker_d912": "TSC4D",
