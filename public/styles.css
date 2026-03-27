@@ -1366,6 +1366,9 @@ body {
   background: var(--border);
   border: 1px solid var(--border);
 }
+.mundo-col {
+  display: contents;
+}
 .mundo-group-header {
   grid-column: 1 / -1;
   font-size: 0.6rem;
@@ -1455,52 +1458,50 @@ body {
   font-size: 0.55rem;
 }
 
-/* Mundo Mobile */
+/* Mundo Mobile — two-column group layout */
 @media (max-width: 600px) {
   .mundo-grid {
-    grid-template-columns: 1fr;
-    gap: 0;
-    border: none;
-    background: none;
+    display: flex;
+    gap: 1px;
+  }
+  .mundo-col {
+    display: flex;
+    flex-direction: column;
+    flex: 1 1 0;
+    min-width: 0;
+    background: var(--card-bg);
   }
   .mundo-card {
-    padding: 6px 10px;
-    gap: 6px;
-    border-bottom: 1px solid var(--border);
+    padding: 5px 8px;
+    gap: 4px;
   }
   .mundo-icon {
-    font-size: 0.75rem;
-    width: 18px;
-    text-align: center;
+    display: none;
   }
   .mundo-info {
-    flex-direction: row;
-    display: flex;
-    align-items: baseline;
-    gap: 6px;
+    flex: 1;
+    min-width: 0;
   }
   .mundo-name {
-    font-size: 0.65rem;
-    min-width: 70px;
+    font-size: 0.58rem;
   }
   .mundo-price {
-    font-size: 0.8rem;
+    font-size: 0.72rem;
   }
   .mundo-spark {
-    flex: 1;
-    width: auto;
-    height: 20px;
-    min-width: 40px;
+    flex: 0 0 auto;
+    width: 32px;
+    height: 16px;
   }
   .mundo-change {
-    font-size: 0.65rem;
-    min-width: 50px;
+    font-size: 0.55rem;
+    min-width: 38px;
   }
   .mundo-arrow {
-    font-size: 0.45rem;
+    font-size: 0.35rem;
   }
   .mundo-group-header {
-    padding: 6px 10px 3px;
+    padding: 5px 8px 2px;
     font-size: 0.5rem;
     border: none;
   }

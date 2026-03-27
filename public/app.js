@@ -1699,11 +1699,22 @@ async function loadMundo() {
       groupMap[g].push(item);
     });
 
-    groups.forEach(groupName => {
+    // Split groups into two columns for mobile layout
+    const leftGroups = groups.slice(0, Math.ceil(groups.length / 2));
+    const rightGroups = groups.slice(Math.ceil(groups.length / 2));
+
+    const colLeft = document.createElement('div');
+    colLeft.className = 'mundo-col';
+    const colRight = document.createElement('div');
+    colRight.className = 'mundo-col';
+    grid.appendChild(colLeft);
+    grid.appendChild(colRight);
+
+    function renderGroupInto(container, groupName) {
       const header = document.createElement('div');
       header.className = 'mundo-group-header';
       header.textContent = groupName;
-      grid.appendChild(header);
+      container.appendChild(header);
 
       groupMap[groupName].forEach(item => {
         const isRate = item.group === 'Tasas';
@@ -1738,13 +1749,16 @@ async function loadMundo() {
             <span>${Math.abs(item.change).toFixed(2)}%</span>
           </div>
         `;
-        grid.appendChild(card);
+        container.appendChild(card);
 
         if (item.sparkline && item.sparkline.length > 1) {
           drawSparkline(canvasId, item.sparkline, isUp);
         }
       });
-    });
+    }
+
+    leftGroups.forEach(g => renderGroupInto(colLeft, g));
+    rightGroups.forEach(g => renderGroupInto(colRight, g));
 
     const src = document.getElementById('mundo-source');
     if (src) src.textContent = '';
