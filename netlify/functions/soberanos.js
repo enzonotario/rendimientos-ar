@@ -5,7 +5,7 @@ const BONDS_URL = 'https://data912.com/live/arg_bonds';
 const TICKERS_USD = ['BPD7D','AO27D','AN29D','AL29D','AL30D','AL35D','AE38D','AL41D','GD29D','GD30D','GD35D','GD38D','GD41D'];
 
 exports.handler = async (event) => {
-  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' };
 
   try {
     const bonds = await fetchJSON(BONDS_URL);

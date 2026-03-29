@@ -1,6 +1,17 @@
 {
   "garantizados": [
     {
+      "id": "banco-voii",
+      "nombre": "Banco Voii",
+      "tipo": "Cuenta Remunerada",
+      "limite": null,
+      "tna": 20,
+      "vigente_desde": "29/03/2026",
+      "logo": "VO",
+      "logo_bg": "#6b21a8",
+      "activo": true
+    },
+    {
       "id": "carrefour-banco",
       "nombre": "Carrefour Banco",
       "tipo": "Billetera",

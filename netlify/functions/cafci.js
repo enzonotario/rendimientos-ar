@@ -1,6 +1,6 @@
 // Fetches FCI data from ArgentinaDatos API and calculates TNA from VCP changes
 exports.handler = async (event) => {
-  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' };
 
   try {
     // Fetch money market and renta mixta (ultimo + penultimo) in parallel

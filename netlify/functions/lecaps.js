@@ -9,7 +9,7 @@ const LECAP_TICKERS = ['S17A6', 'S30A6', 'S15Y6', 'S29Y6', 'S31L6', 'S31G6', 'S3
 const BONCAP_TICKERS = ['T30J6', 'T15E7', 'T30A7', 'T31Y7', 'T30J7'];
 
 exports.handler = async (event) => {
-  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' };
+  const headers = { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=300' };
 
   try {
     const [notes, bonds] = await Promise.all([fetchJSON(NOTES_URL), fetchJSON(BONDS_URL)]);
