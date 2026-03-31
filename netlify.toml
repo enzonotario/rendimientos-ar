@@ -74,6 +74,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/bcra-cambiarias"
+  to = "/.netlify/functions/bcra-cambiarias"
+  status = 200
+
+[[redirects]]
   from = "/api/auth-config"
   to = "/.netlify/functions/auth-config"
   status = 200

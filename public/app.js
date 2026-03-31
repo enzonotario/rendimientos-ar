@@ -774,18 +774,15 @@ function setupTabs() {
     }
   }
 
-  function switchToBcra() {
+  function switchToBcra(subtab) {
     hideAllTabs();
     headerBcra.classList.add('active');
     subnav.style.display = 'none';
     document.getElementById('tab-bcra').style.display = 'block';
-    hero.querySelector('h1').textContent = 'Indicadores BCRA';
+    hero.querySelector('h1').textContent = 'BCRA';
     hero.querySelector('p').textContent = 'Datos oficiales del Banco Central: tasas, inflación, reservas, tipo de cambio y más.';
     updatePageTitle('bcra');
-    const bcraList = document.getElementById('bcra-list');
-    if (!bcraList.querySelector('.bcra-category')) {
-      loadBcra();
-    }
+    activateBcraTab(subtab || 'indicadores');
   }
 
   function switchToForo(threadId) {
@@ -1139,6 +1136,26 @@ const HIPOTECARIO_COLORS = {
 
 let _bcraData = null;
 let _bcraChart = null;
+let _bcraCambiariasLoaded = false;
+
+function activateBcraTab(tab) {
+  const tabs = document.querySelectorAll('.bcra-tab');
+  tabs.forEach(t => t.classList.toggle('active', t.dataset.bcraTab === tab));
+  document.getElementById('bcra-panel-indicadores').style.display = tab === 'indicadores' ? '' : 'none';
+  document.getElementById('bcra-panel-cambiarias').style.display = tab === 'cambiarias' ? '' : 'none';
+  if (tab === 'indicadores') {
+    if (!document.getElementById('bcra-list').querySelector('.bcra-category')) loadBcra();
+  } else if (tab === 'cambiarias') {
+    if (!_bcraCambiariasLoaded) loadBcraCambiarias();
+  }
+}
+
+// Wire up BCRA subtabs (called once DOM is ready)
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.bcra-tab').forEach(t => {
+    t.addEventListener('click', e => { e.preventDefault(); activateBcraTab(t.dataset.bcraTab); });
+  });
+});
 
 async function loadBcra() {
   const container = document.getElementById('bcra-list');
@@ -1329,6 +1346,74 @@ async function loadBcraChart(idVariable) {
   } catch (err) {
     canvas.style.opacity = '1';
     console.error('BCRA chart error:', err);
+  }
+}
+
+// ─── BCRA Cambiarias ─────────────────────────────────────────────────────────
+
+const NOMBRE_MONEDA = {
+  USD: 'Dólar Estadounidense', EUR: 'Euro', BRL: 'Real Brasileño', GBP: 'Libra Esterlina',
+  CHF: 'Franco Suizo', JPY: 'Yen Japonés', CNY: 'Yuan Chino', CLP: 'Peso Chileno',
+  UYU: 'Peso Uruguayo', PYG: 'Guaraní Paraguayo', BOB: 'Boliviano', MXN: 'Peso Mexicano',
+  COP: 'Peso Colombiano', CAD: 'Dólar Canadiense', AUD: 'Dólar Australiano',
+  XAU: 'Oro (oz troy)', XAG: 'Plata (oz troy)',
+};
+
+const FLAG_MONEDA = {
+  USD: '🇺🇸', EUR: '🇪🇺', BRL: '🇧🇷', GBP: '🇬🇧', CHF: '🇨🇭', JPY: '🇯🇵',
+  CNY: '🇨🇳', CLP: '🇨🇱', UYU: '🇺🇾', PYG: '🇵🇾', BOB: '🇧🇴', MXN: '🇲🇽',
+  COP: '🇨🇴', CAD: '🇨🇦', AUD: '🇦🇺', XAU: '🥇', XAG: '🥈',
+};
+
+async function loadBcraCambiarias() {
+  const container = document.getElementById('bcra-cambiarias-list');
+  container.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando cotizaciones BCRA...</p></div>`;
+
+  try {
+    const res = await fetch('/api/bcra-cambiarias');
+    if (!res.ok) throw new Error(`Error ${res.status}`);
+    const json = await res.json();
+    _bcraCambiariasLoaded = true;
+
+    const { fecha, destacadas = [], otras = [] } = json;
+    const fechaFmt = fecha ? (() => { const [y,m,d] = fecha.split('-'); return `${d}/${m}/${y}`; })() : '';
+
+    function renderMoneda(m) {
+      const nombre = NOMBRE_MONEDA[m.codigo] || m.nombre;
+      const flag = FLAG_MONEDA[m.codigo] || '';
+      const cot = m.cotizacion.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+      return `<div class="bcra-card bcra-camb-card">
+        <div class="bcra-card-nombre">${flag ? `<span style="margin-right:5px">${flag}</span>` : ''}<strong>${m.codigo}</strong> · ${nombre}</div>
+        <div class="bcra-card-valor">$${cot}</div>
+        <div class="bcra-card-meta"><span class="bcra-card-fecha">${fechaFmt}</span></div>
+      </div>`;
+    }
+
+    let html = '';
+
+    // Destacadas
+    html += `<div class="bcra-category">
+      <h3 class="bcra-cat-title">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        Principales
+      </h3>
+      <div class="bcra-cards">${destacadas.map(renderMoneda).join('')}</div>
+    </div>`;
+
+    // Todas las demás
+    if (otras.length > 0) {
+      html += `<div class="bcra-category">
+        <h3 class="bcra-cat-title">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          Todas las divisas
+        </h3>
+        <div class="bcra-cards bcra-cards-otras">${otras.map(renderMoneda).join('')}</div>
+      </div>`;
+    }
+
+    container.innerHTML = html;
+  } catch (err) {
+    container.innerHTML = `<p style="color:var(--red);padding:20px">Error cargando cotizaciones: ${err.message}</p>`;
   }
 }
 

@@ -420,6 +420,39 @@ app.get('/api/bcra', async (req, res) => {
   }
 });
 
+// --- BCRA Cambiarias ---
+
+const MONEDAS_DESTACADAS = ['USD', 'EUR', 'BRL', 'GBP', 'CHF', 'JPY', 'CNY', 'CLP', 'UYU', 'PYG', 'BOB', 'MXN', 'COP', 'CAD', 'AUD', 'XAU', 'XAG'];
+
+app.get('/api/bcra-cambiarias', async (req, res) => {
+  const { moneda, desde, hasta } = req.query;
+  try {
+    if (moneda) {
+      let url = `https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/${moneda}?limit=365`;
+      if (desde) url += `&fechaDesde=${desde}`;
+      if (hasta) url += `&fechaHasta=${hasta}`;
+      const r = await fetch(url);
+      res.json(await r.json());
+      return;
+    }
+    const r = await fetch('https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones');
+    const result = await r.json();
+    const detalle = result.results?.detalle || [];
+    const fecha = result.results?.fecha || null;
+    const destacadas = [], otras = [];
+    for (const m of detalle) {
+      if (!m.tipoCotizacion || m.tipoCotizacion <= 0) continue;
+      const item = { codigo: m.codigoMoneda, nombre: m.descripcion, cotizacion: m.tipoCotizacion, tipoPase: m.tipoPase, destacada: MONEDAS_DESTACADAS.includes(m.codigoMoneda) };
+      if (item.destacada) destacadas.push(item); else otras.push(item);
+    }
+    destacadas.sort((a, b) => MONEDAS_DESTACADAS.indexOf(a.codigo) - MONEDAS_DESTACADAS.indexOf(b.codigo));
+    otras.sort((a, b) => a.codigo.localeCompare(b.codigo));
+    res.json({ fecha, destacadas, otras, timestamp: new Date().toISOString() });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 // --- Cotizaciones (Dólar Oficial, CCL, MEP, Riesgo País) ---
 
 app.get('/api/cotizaciones', async (req, res) => {
