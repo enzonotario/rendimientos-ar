@@ -353,13 +353,12 @@ body {
 }
 
 .header-inner {
-  max-width: 1280px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 10px 20px;
+  padding: 8px 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 6px;
+  gap: 8px;
 }
 
 .logo {
@@ -376,8 +375,13 @@ body {
   background: var(--bg-subtle);
   border-radius: 24px;
   padding: 4px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  flex: 1;
+  min-width: 0;
 }
+.currency-tabs::-webkit-scrollbar { display: none; }
 
 .currency-tab {
   text-decoration: none;
@@ -1016,37 +1020,6 @@ body {
 
 /* Theme Toggle */
 /* Accessibility / Read Aloud Toggle */
-.a11y-toggle {
-  background: var(--bg-subtle);
-  border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 6px 10px;
-  cursor: pointer;
-  font-size: 0.85rem;
-  line-height: 1;
-  transition: all 0.15s;
-  flex-shrink: 0;
-  color: var(--text-secondary);
-}
-.a11y-toggle:hover {
-  background: var(--border);
-  color: var(--text);
-}
-.a11y-toggle.active {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
-}
-.a11y-toggle.active:hover {
-  opacity: 0.9;
-}
-[data-theme="dark"] .a11y-toggle {
-  color: var(--text);
-}
-[data-theme="dark"] .a11y-toggle.active {
-  background: var(--accent);
-  border-color: var(--accent);
-}
 
 .theme-toggle {
   background: var(--bg-subtle);
