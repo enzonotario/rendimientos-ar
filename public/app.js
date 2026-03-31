@@ -782,7 +782,8 @@ function setupTabs() {
     hero.querySelector('h1').textContent = 'Indicadores BCRA';
     hero.querySelector('p').textContent = 'Datos oficiales del Banco Central: tasas, inflación, reservas, tipo de cambio y más.';
     updatePageTitle('bcra');
-    if (!document.getElementById('bcra-list').hasChildNodes()) {
+    const bcraList = document.getElementById('bcra-list');
+    if (!bcraList.querySelector('.bcra-category')) {
       loadBcra();
     }
   }
