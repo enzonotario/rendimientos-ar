@@ -83,13 +83,13 @@ exports.handler = async (event) => {
       const varDef = VARIABLES[i];
       const result = results[i];
       if (result.status === 'fulfilled' && result.value.results && result.value.results.length > 0) {
-        const items = result.value.results;
-        const latest = items[0];
-        const prev = items.length > 1 ? items[1] : null;
+        const detalle = result.value.results[0].detalle || [];
+        const latest = detalle[0];
+        const prev = detalle.length > 1 ? detalle[1] : null;
         data.push({
           ...varDef,
-          valor: latest.valor,
-          fecha: latest.fecha,
+          valor: latest ? latest.valor : null,
+          fecha: latest ? latest.fecha : null,
           valorAnterior: prev ? prev.valor : null,
           fechaAnterior: prev ? prev.fecha : null,
         });

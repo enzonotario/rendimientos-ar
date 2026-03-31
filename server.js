@@ -409,8 +409,8 @@ app.get('/api/bcra', async (req, res) => {
     const data = BCRA_VARS.map((varDef, i) => {
       const result = results[i];
       if (result.status === 'fulfilled' && result.value.results?.length > 0) {
-        const items = result.value.results;
-        return { ...varDef, valor: items[0].valor, fecha: items[0].fecha, valorAnterior: items[1]?.valor || null, fechaAnterior: items[1]?.fecha || null };
+        const detalle = result.value.results[0].detalle || [];
+        return { ...varDef, valor: detalle[0]?.valor ?? null, fecha: detalle[0]?.fecha ?? null, valorAnterior: detalle[1]?.valor ?? null, fechaAnterior: detalle[1]?.fecha ?? null };
       }
       return { ...varDef, valor: null, fecha: null, valorAnterior: null, fechaAnterior: null };
     });
