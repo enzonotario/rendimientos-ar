@@ -612,6 +612,7 @@ function setupTabs() {
   const headerMundo = document.getElementById('header-mundo');
   const headerHipotecarios = document.getElementById('header-hipotecarios');
 
+  const headerDolar = document.getElementById('header-dolar');
   const headerBcra = document.getElementById('header-bcra');
   const headerMundial = document.getElementById('header-mundial');
   const headerPortfolio = document.getElementById('header-portfolio');
@@ -630,11 +631,12 @@ function setupTabs() {
     document.getElementById('section-mundo').style.display = 'none';
     document.getElementById('tab-portfolio').style.display = 'none';
     document.getElementById('tab-foro').style.display = 'none';
+    document.getElementById('tab-dolar').style.display = 'none';
     document.getElementById('tab-bcra').style.display = 'none';
     document.getElementById('tab-mundial').style.display = 'none';
     if (sectionHome) sectionHome.classList.remove('active');
     document.querySelector('.container').style.display = '';
-    [headerArs, headerSoberanos, headerONs, headerMundo, headerHipotecarios, headerBcra, headerMundial, headerPortfolio, headerForo].forEach(b => b && b.classList.remove('active'));
+    [headerArs, headerSoberanos, headerONs, headerMundo, headerHipotecarios, headerDolar, headerBcra, headerMundial, headerPortfolio, headerForo].forEach(b => b && b.classList.remove('active'));
     hero.style.display = '';
   }
 
@@ -658,6 +660,7 @@ function setupTabs() {
       lecaps: 'LECAPs y BONCAPs',
       hipotecarios: 'Hipotecarios UVA',
       bcra: 'Indicadores BCRA',
+      dolar: 'Dolar',
       portfolio: 'Mi Portfolio',
       mundial: 'Mundial 2026',
       foro: 'Foro'
@@ -805,6 +808,19 @@ function setupTabs() {
     }
   }
 
+  function switchToDolar() {
+    hideAllTabs();
+    headerDolar.classList.add('active');
+    subnav.style.display = 'none';
+    document.getElementById('tab-dolar').style.display = 'block';
+    hero.querySelector('h1').textContent = 'Dolar';
+    hero.querySelector('p').textContent = 'Compara tipos de cambio y encontra el mejor precio para comprar o vender dolares en Argentina.';
+    updatePageTitle('dolar');
+    if (!document.getElementById('dolar-tipos').hasChildNodes()) {
+      loadDolar();
+    }
+  }
+
   function switchToMundial() {
     hideAllTabs();
     headerMundial.classList.add('active');
@@ -827,6 +843,7 @@ function setupTabs() {
   if (headerONs) headerONs.addEventListener('click', (e) => { e.preventDefault(); switchToONs(); location.hash = 'ons'; });
   if (headerMundo) headerMundo.addEventListener('click', (e) => { e.preventDefault(); switchToMundo(); location.hash = 'mundo'; });
   if (headerHipotecarios) headerHipotecarios.addEventListener('click', (e) => { e.preventDefault(); switchToHipotecarios(); location.hash = 'hipotecarios'; });
+  if (headerDolar) headerDolar.addEventListener('click', (e) => { e.preventDefault(); switchToDolar(); location.hash = 'dolar'; });
   if (headerBcra) headerBcra.addEventListener('click', (e) => { e.preventDefault(); switchToBcra(); location.hash = 'bcra'; });
   if (headerMundial) headerMundial.addEventListener('click', (e) => { e.preventDefault(); switchToMundial(); location.hash = 'mundial'; });
   if (headerPortfolio) headerPortfolio.addEventListener('click', (e) => { e.preventDefault(); switchToPortfolio(); location.hash = 'portfolio'; });
@@ -842,6 +859,7 @@ function setupTabs() {
   else if (initialHash === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
   else if (initialHash === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
   else if (initialHash === 'hipotecarios') switchToHipotecarios();
+  else if (initialHash === 'dolar') switchToDolar();
   else if (initialHash === 'bcra') switchToBcra();
   else if (initialHash === 'ons') switchToONs();
   else if (initialHash === 'mundial') switchToMundial();
@@ -862,6 +880,7 @@ function setupTabs() {
     else if (h === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
     else if (h === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
     else if (h === 'hipotecarios') switchToHipotecarios();
+    else if (h === 'dolar') switchToDolar();
     else if (h === 'bcra') switchToBcra();
     else if (h === 'ons') switchToONs();
     else if (h === 'mundial') switchToMundial();
@@ -1556,7 +1575,10 @@ async function loadLecaps() {
     const today = new Date();
     const settlement = getSettlementDate(today);
 
-    const items = lecaps.letras.filter(l => l.activo).map(l => {
+    const items = lecaps.letras.filter(l => l.activo).filter(l => {
+      const precio = livePrices[l.ticker] || l.precio;
+      return precio && precio > 0;
+    }).map(l => {
       // Use live price if available, fallback to config
       const precio = livePrices[l.ticker] || l.precio;
       const vto = parseLocalDate(l.fecha_vencimiento);
@@ -4682,146 +4704,181 @@ function openNewThreadModal() {
   });
 }
 
-// ─── Retro 90s Zone ───
-(function initRetroZone() {
-  // Sparkle cursor
-  const sparkleCanvas = document.createElement('canvas');
-  sparkleCanvas.id = 'sparkle-canvas';
-  sparkleCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:99999;';
-  document.body.appendChild(sparkleCanvas);
-  const ctx = sparkleCanvas.getContext('2d');
-  let sparks = [];
-  function resizeCanvas() { sparkleCanvas.width = window.innerWidth; sparkleCanvas.height = window.innerHeight; }
-  resizeCanvas();
-  window.addEventListener('resize', resizeCanvas);
-  document.addEventListener('mousemove', (e) => {
-    for (let i = 0; i < 3; i++) {
-      sparks.push({
-        x: e.clientX + (Math.random() - 0.5) * 10,
-        y: e.clientY + (Math.random() - 0.5) * 10,
-        vx: (Math.random() - 0.5) * 2,
-        vy: (Math.random() - 0.5) * 2 - 1,
-        life: 1,
-        size: Math.random() * 3 + 1,
-        color: ['#FFD700', '#FF69B4', '#00FFFF', '#FF4500', '#7CFC00', '#FF00FF'][Math.floor(Math.random() * 6)]
+// ─── Dolar ───
+// Logo map for dolar exchanges — images from criptos.com.ar + local
+// Map exchange IDs to ENTITY_LOGOS keys or file paths
+const DOLAR_LOGO_ENTITY = {
+  fiwind: 'Fiwind', belo: 'Belo', cocoscapital: 'Cocos', cocoscrypto: 'Cocos',
+  lbfinanzas: 'LB Finanzas',
+};
+const DOLAR_LOGO_FILE = {
+  uala: '/logos/Uala.svg',
+};
+const DOLAR_LOGO_INITIALS = {
+  buenbit: { t: 'BB', bg: '#00b4d8' },
+  ripio: { t: 'RI', bg: '#21bf73' },
+  ripioexchange: { t: 'RI', bg: '#21bf73' },
+  satoshitango: { t: 'ST', bg: '#ff6b00' },
+  lemoncash: { t: 'LM', bg: '#ffe000', c: '#000' },
+  binance: { t: 'BN', bg: '#f0b90b', c: '#000' },
+  bybit: { t: 'BY', bg: '#f7a600', c: '#000' },
+  decrypto: { t: 'DC', bg: '#1a1a2e' },
+  saldo: { t: 'SA', bg: '#10b981' },
+  pluscrypto: { t: 'P+', bg: '#7c3aed' },
+  tiendacrypto: { t: 'TC', bg: '#2563eb' },
+  wallbit: { t: 'WB', bg: '#111827' },
+  dolarapp: { t: 'DA', bg: '#22c55e' },
+  bitsoalpha: { t: 'BT', bg: '#00d4aa' },
+  letsbit: { t: 'LB', bg: '#6c63ff' },
+  vibrant: { t: 'VB', bg: '#6366f1' },
+  peanut: { t: 'PN', bg: '#f97316' },
+  cryptomkt: { t: 'CM', bg: '#2563eb' },
+  p2pme: { t: 'P2', bg: '#3b82f6' },
+};
+function getDolarExchangeLogo(id, name) {
+  // Try ENTITY_LOGOS (base64 SVGs)
+  const entityKey = DOLAR_LOGO_ENTITY[id];
+  if (entityKey && ENTITY_LOGOS[entityKey]) return `<img src="${ENTITY_LOGOS[entityKey]}" alt="${name}" style="width:24px;height:24px;border-radius:6px;object-fit:contain;">`;
+  // Try file-based logos
+  const file = DOLAR_LOGO_FILE[id];
+  if (file) return `<img src="${file}" alt="${name}" style="width:24px;height:24px;border-radius:6px;object-fit:contain;">`;
+  // Initials with brand color
+  const ini = DOLAR_LOGO_INITIALS[id];
+  if (ini) return `<div class="dolar-tipo-icon" style="background:${ini.bg};${ini.c ? 'color:' + ini.c : ''}">${ini.t}</div>`;
+  return `<div class="dolar-tipo-icon" style="background:#6b7280">${(name || '').slice(0, 2).toUpperCase()}</div>`;
+}
+
+async function loadDolar() {
+  const bestEl = document.getElementById('dolar-best');
+  const tiposEl = document.getElementById('dolar-tipos');
+  const exchangesEl = document.getElementById('dolar-exchanges');
+  const sourceEl = document.getElementById('dolar-source');
+
+  exchangesEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Cargando cotizaciones...</p></div>';
+  tiposEl.innerHTML = '';
+
+  try {
+    const res = await fetch('/api/dolar');
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+    const { exchanges, updated } = await res.json();
+
+    // ── Best buy / best sell hero — USD billete only ──
+    const usdProviders = (exchanges.usd || []).filter(e => e.ask > 0 && e.bid > 0);
+    if (usdProviders.length > 0) {
+      const bestBuy = usdProviders.reduce((a, b) => a.ask < b.ask ? a : b);
+      const bestSell = usdProviders.reduce((a, b) => a.bid > b.bid ? a : b);
+      const bestSpread = usdProviders.reduce((a, b) => a.spread < b.spread ? a : b);
+
+      bestEl.innerHTML = `
+        <div class="dolar-best-card best-sell">
+          <div class="dolar-best-label">Mejor para vender</div>
+          <div class="dolar-best-exchange">${getDolarExchangeLogo(bestSell.id, bestSell.name)} ${bestSell.name}</div>
+          <div class="dolar-best-price">$${bestSell.bid.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
+        </div>
+        <div class="dolar-best-card best-buy">
+          <div class="dolar-best-label">Mejor para comprar</div>
+          <div class="dolar-best-exchange">${getDolarExchangeLogo(bestBuy.id, bestBuy.name)} ${bestBuy.name}</div>
+          <div class="dolar-best-price">$${bestBuy.ask.toLocaleString('es-AR', {minimumFractionDigits: 2})}</div>
+        </div>
+        <div class="dolar-best-card dolar-spread-card">
+          <div class="dolar-best-label" style="color:var(--yellow)">Menor spread</div>
+          <div class="dolar-best-exchange">${getDolarExchangeLogo(bestSpread.id, bestSpread.name)} ${bestSpread.name}</div>
+          <div class="dolar-best-price">${bestSpread.spread}%</div>
+        </div>`;
+    }
+
+    // ── Exchange table (proveedores) ──
+    let currentCoin = 'usd';
+    let currentSort = 'buy';
+
+    function renderExchangeTable() {
+      const list = exchanges[currentCoin] || [];
+      const sorted = [...list].sort((a, b) => {
+        if (currentSort === 'buy') return a.ask - b.ask;
+        return b.bid - a.bid;
       });
+
+      const rows = sorted.map((ex, i) => {
+        const rank = i + 1;
+        const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-other';
+        const isBestBuy = currentSort === 'buy' && rank === 1;
+        const isBestSell = currentSort === 'sell' && rank === 1;
+        const logo = getDolarExchangeLogo(ex.id, ex.name);
+        const bidStr = ex.bid ? '$' + ex.bid.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '-';
+        const askStr = ex.ask ? '$' + ex.ask.toLocaleString('es-AR', {minimumFractionDigits: 2}) : '-';
+        return `<tr>
+          <td><span class="dolar-exchange-name"><span class="dolar-rank ${rankClass}">${rank}</span> ${logo} ${ex.name}</span></td>
+          <td class="col-right">${isBestSell ? '<span class="dolar-best-tag">MEJOR</span> ' : ''}${bidStr}</td>
+          <td class="col-right">${isBestBuy ? '<span class="dolar-best-tag">MEJOR</span> ' : ''}${askStr}</td>
+          <td class="col-right">${ex.spread}%</td>
+        </tr>`;
+      }).join('');
+
+      const tableEl = document.getElementById('dolar-exchange-table-body');
+      if (tableEl) tableEl.innerHTML = rows;
     }
-  });
-  function animateSparks() {
-    ctx.clearRect(0, 0, sparkleCanvas.width, sparkleCanvas.height);
-    sparks = sparks.filter(s => s.life > 0);
-    for (const s of sparks) {
-      ctx.globalAlpha = s.life;
-      ctx.fillStyle = s.color;
-      ctx.beginPath();
-      // Draw star shape
-      const spikes = 4; const outerR = s.size * s.life; const innerR = outerR * 0.4;
-      for (let i = 0; i < spikes * 2; i++) {
-        const r = i % 2 === 0 ? outerR : innerR;
-        const angle = (i * Math.PI) / spikes - Math.PI / 2;
-        if (i === 0) ctx.moveTo(s.x + r * Math.cos(angle), s.y + r * Math.sin(angle));
-        else ctx.lineTo(s.x + r * Math.cos(angle), s.y + r * Math.sin(angle));
-      }
-      ctx.closePath(); ctx.fill();
-      s.x += s.vx; s.y += s.vy; s.vy += 0.05; s.life -= 0.025;
-    }
-    ctx.globalAlpha = 1;
-    requestAnimationFrame(animateSparks);
-  }
-  animateSparks();
 
-  // Horoscope
-  const signs = [
-    { name: 'Aries', icon: '\u2648', dates: 'Mar 21 - Abr 19' },
-    { name: 'Tauro', icon: '\u2649', dates: 'Abr 20 - May 20' },
-    { name: 'Geminis', icon: '\u264A', dates: 'May 21 - Jun 20' },
-    { name: 'Cancer', icon: '\u264B', dates: 'Jun 21 - Jul 22' },
-    { name: 'Leo', icon: '\u264C', dates: 'Jul 23 - Ago 22' },
-    { name: 'Virgo', icon: '\u264D', dates: 'Ago 23 - Sep 22' },
-    { name: 'Libra', icon: '\u264E', dates: 'Sep 23 - Oct 22' },
-    { name: 'Escorpio', icon: '\u264F', dates: 'Oct 23 - Nov 21' },
-    { name: 'Sagitario', icon: '\u2650', dates: 'Nov 22 - Dic 21' },
-    { name: 'Capricornio', icon: '\u2651', dates: 'Dic 22 - Ene 19' },
-    { name: 'Acuario', icon: '\u2652', dates: 'Ene 20 - Feb 18' },
-    { name: 'Piscis', icon: '\u2653', dates: 'Feb 19 - Mar 20' },
-  ];
-  const predictions = [
-    'Hoy es un excelente dia para comprar LECAPs. Los astros favorecen la renta fija.',
-    'Venus en retrogrado sugiere que NO es momento de vender dolares.',
-    'Mercurio alineado con Jupiter: tu portfolio subira un 3.7% esta semana (fuente: los astros).',
-    'La luna llena indica que deberias diversificar. Compra Bonos CER.',
-    'Marte en tu casa 8 dice que alguien te debe plata. Cobra HOY.',
-    'Saturno favorece las inversiones a largo plazo. Compra AL30.',
-    'Neptuno en Piscis: cuidado con las criptomonedas esta semana.',
-    'El sol en tu signo potencia tu olfato financiero. Confia en tu instinto.',
-    'Urano dice que es hora de probar algo nuevo. Fondos comunes?',
-    'Jupiter amplifica las ganancias. Buen momento para el plazo fijo.',
-    'La conjuncion planetaria sugiere revisar tu cartera de ONs.',
-    'Hoy los astros dicen: mejor quedarse en billetera digital.',
-  ];
-  const horoscopoEl = document.getElementById('retro-horoscopo');
-  if (horoscopoEl) {
-    // Show 3 random signs
-    const shuffled = [...signs].sort(() => Math.random() - 0.5).slice(0, 3);
-    horoscopoEl.innerHTML = shuffled.map(s =>
-      `<p style="margin-bottom:10px;"><strong style="color:gold;">${s.icon} ${s.name}</strong> <span style="color:#a080c0;font-size:0.7rem;">(${s.dates})</span><br>${predictions[Math.floor(Math.random() * predictions.length)]}</p>`
-    ).join('');
-  }
+    exchangesEl.innerHTML = `
+      <div class="dolar-exchange-section">
+        <div class="dolar-exchange-header">
+          <span class="dolar-exchange-title">Proveedores</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <div class="dolar-coin-toggle">
+              <button class="dolar-coin-btn active" data-coin="usd">USD</button>
+              <button class="dolar-coin-btn" data-coin="usdt">USDT</button>
+              <button class="dolar-coin-btn" data-coin="usdc">USDC</button>
+            </div>
+            <div class="dolar-sort-toggle">
+              <button class="dolar-sort-btn active" data-sort="buy">Mejor compra</button>
+              <button class="dolar-sort-btn" data-sort="sell">Mejor venta</button>
+            </div>
+          </div>
+        </div>
+        <table class="dolar-exchange-table">
+          <thead>
+            <tr>
+              <th>Proveedor</th>
+              <th class="col-right">Venta</th>
+              <th class="col-right">Compra</th>
+              <th class="col-right">Spread</th>
+            </tr>
+          </thead>
+          <tbody id="dolar-exchange-table-body"></tbody>
+        </table>
+      </div>`;
 
-  // Guestbook
-  const defaultEntries = [
-    { name: 'Juan_Trader_97', date: '15/03/1997', msg: 'Muy buena pagina!!! La mejor de Yahoo! Finanzas no tiene nada que ver. Saludos desde Tucuman!!!' },
-    { name: 'xX_InversorPro_Xx', date: '22/07/1998', msg: 'me pueden explicar que es un bono?? gracias de antemano, muy buena la pagina' },
-    { name: 'MariaFinanzas', date: '01/01/2000', msg: 'FELIZ AÑO NUEVO!!! No se rompio nada con el Y2K por suerte jaja. Sigan asi con la pagina!!' },
-    { name: 'ElRataFinanciero', date: '03/05/2001', msg: 'puse todo en plazo fijo y me fue bien, gracias rendimientos.co los quiero' },
-    { name: 'CryptoNoExiste', date: '12/08/1999', msg: 'che alguien sabe que onda esas monedas digitales? suena a estafa piramidal' },
-    { name: 'Webmaster_Carlos', date: '28/11/1997', msg: 'Muy linda pagina, le puse 5 estrellas en mi ranking de GeoCities. Visiten mi pagina de MIDI!!' },
-  ];
-  const gbEntries = document.getElementById('retro-guestbook-entries');
-  const gbName = document.getElementById('retro-gb-name');
-  const gbMsg = document.getElementById('retro-gb-msg');
-  const gbSubmit = document.getElementById('retro-gb-submit');
-  let entries = [...defaultEntries];
+    renderExchangeTable();
 
-  function renderGB() {
-    if (!gbEntries) return;
-    gbEntries.innerHTML = entries.map(e =>
-      `<div style="border-bottom:1px dashed #cc9900;padding:8px 0;">
-        <strong style="color:#990000;">${e.name}</strong> <span style="color:#999;font-size:0.65rem;">(${e.date})</span><br>
-        <span style="color:#333;">${e.msg}</span>
-      </div>`
-    ).join('');
-    gbEntries.scrollTop = gbEntries.scrollHeight;
-  }
-  renderGB();
-
-  if (gbSubmit) {
-    gbSubmit.addEventListener('click', () => {
-      const name = gbName.value.trim() || 'Anonimo';
-      const msg = gbMsg.value.trim();
-      if (!msg) return;
-      const now = new Date();
-      entries.push({ name, date: now.toLocaleDateString('es-AR'), msg });
-      renderGB();
-      gbName.value = ''; gbMsg.value = '';
-      // Easter egg: the submit button text
-      gbSubmit.textContent = 'FIRMADO!!!';
-      setTimeout(() => { gbSubmit.textContent = 'FIRMAR'; }, 2000);
+    // Coin toggle
+    exchangesEl.querySelectorAll('.dolar-coin-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        exchangesEl.querySelectorAll('.dolar-coin-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentCoin = btn.dataset.coin;
+        renderExchangeTable();
+      });
     });
-  }
 
-  // Counter animation
-  const counterEl = document.getElementById('retro-counter');
-  if (counterEl) {
-    let count = 4837;
-    setInterval(() => {
-      count += Math.floor(Math.random() * 3);
-      const digits = String(count).padStart(6, '0').split('');
-      const spans = counterEl.querySelectorAll('span');
-      digits.forEach((d, i) => { if (spans[i]) spans[i].textContent = d; });
-    }, 5000);
+    // Sort toggle
+    exchangesEl.querySelectorAll('.dolar-sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        exchangesEl.querySelectorAll('.dolar-sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentSort = btn.dataset.sort;
+        renderExchangeTable();
+      });
+    });
+
+    // Source
+    const updTime = new Date(updated);
+    const timeStr = updTime.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+    sourceEl.textContent = `Fuentes: DolarAPI, CriptoYa — Actualizado ${timeStr}`;
+
+  } catch (err) {
+    console.error('Dolar load error:', err);
+    tiposEl.innerHTML = '<div class="loading">No se pudieron cargar las cotizaciones del dolar.</div>';
   }
-})();
+}
 
 // ─── Mundial 2026 ───
 function renderMundial() {

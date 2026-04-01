@@ -18,10 +18,11 @@ const SYMBOLS = [
   { id: 'gold', symbol: 'GC%3DF', name: 'Oro', icon: '🥇', group: 'Metales' },
   { id: 'silver', symbol: 'SI%3DF', name: 'Plata', icon: '🥈', group: 'Metales' },
   { id: 'copper', symbol: 'HG%3DF', name: 'Cobre', icon: '🔶', group: 'Metales' },
-  // Agro
-  { id: 'soy', symbol: 'ZS%3DF', name: 'Soja', icon: '🌱', group: 'Agro' },
-  { id: 'wheat', symbol: 'ZW%3DF', name: 'Trigo', icon: '🌾', group: 'Agro' },
-  { id: 'corn', symbol: 'ZC%3DF', name: 'Maíz', icon: '🌽', group: 'Agro' },
+  // Agro — Yahoo returns cents/bushel; convert to USD/metric-ton
+  // Bushels per metric ton: soy/wheat 60 lb/bu → 36.7437, corn 56 lb/bu → 39.3679
+  { id: 'soy', symbol: 'ZS%3DF', name: 'Soja', icon: '🌱', group: 'Agro', toTon: 36.7437 / 100 },
+  { id: 'wheat', symbol: 'ZW%3DF', name: 'Trigo', icon: '🌾', group: 'Agro', toTon: 36.7437 / 100 },
+  { id: 'corn', symbol: 'ZC%3DF', name: 'Maíz', icon: '🌽', group: 'Agro', toTon: 39.3679 / 100 },
   // Crypto
   { id: 'btc', symbol: 'BTC-USD', name: 'Bitcoin', icon: '₿', group: 'Crypto' },
   { id: 'eth', symbol: 'ETH-USD', name: 'Ethereum', icon: 'Ξ', group: 'Crypto' },
@@ -122,6 +123,11 @@ exports.handler = async (event) => {
         interval = '15m';
         points = await fetchYahooChart(symEncoded, interval, range);
       }
+      // Convert agro detail chart to USD/metric-ton
+      const sym = SYMBOLS.find(s => s.id === id);
+      if (sym && sym.toTon) {
+        points = points.map(p => ({ t: p.t, v: p.v * sym.toTon }));
+      }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*', 'Cache-Control': 'public, max-age=60' },
@@ -141,8 +147,14 @@ exports.handler = async (event) => {
     const data = SYMBOLS.map((s, i) => {
       const r = results[i];
       if (r.status === 'fulfilled') {
-        const { price, prevClose, sparkline } = r.value;
+        let { price, prevClose, sparkline } = r.value;
         const change = prevClose ? ((price - prevClose) / prevClose) * 100 : 0;
+        // Convert agro commodities from cents/bushel to USD/metric-ton
+        if (s.toTon) {
+          price = price * s.toTon;
+          prevClose = prevClose * s.toTon;
+          sparkline = sparkline.map(v => v * s.toTon);
+        }
         return { ...s, price, prevClose, change: Math.round(change * 100) / 100, sparkline };
       }
       return { ...s, price: null, prevClose: null, change: null, sparkline: [], error: true };

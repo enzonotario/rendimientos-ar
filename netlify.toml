@@ -79,6 +79,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/dolar"
+  to = "/.netlify/functions/dolar"
+  status = 200
+
+[[redirects]]
   from = "/api/mundial"
   to = "/.netlify/functions/mundial"
   status = 200
