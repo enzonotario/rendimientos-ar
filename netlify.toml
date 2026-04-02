@@ -89,6 +89,11 @@
   status = 200
 
 [[redirects]]
+  from = "/api/pix"
+  to = "/.netlify/functions/pix"
+  status = 200
+
+[[redirects]]
   from = "/api/auth-config"
   to = "/.netlify/functions/auth-config"
   status = 200

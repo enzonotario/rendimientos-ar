@@ -4902,7 +4902,7 @@ async function loadDolar() {
 }
 
 // ─── PIX (comparapix.ar) ───
-const PIX_API = 'https://api.comparapix.ar/quotes';
+const PIX_API = '/api/pix';
 const PIX_CACHE_KEY = 'pix-quotes-cache';
 const PIX_CACHE_TTL = 5 * 60 * 1000;
 
