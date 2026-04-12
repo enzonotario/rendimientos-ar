@@ -601,7 +601,7 @@ function setupTabs() {
           loadCER();
         }
       } else if (target === 'inflacion') {
-        hero.querySelector('h1').textContent = 'vs Inflación';
+        hero.querySelector('h1').textContent = 'Comparación';
         hero.querySelector('p').textContent = 'Compará el rendimiento mensual de tus inversiones contra la inflación.';
         if (!document.getElementById('inflacion-chart').hasChildNodes()) {
           loadInflacion();
@@ -741,7 +741,7 @@ function setupTabs() {
       hero.querySelector('h1').textContent = 'Bonos CER';
       hero.querySelector('p').textContent = 'Rendimiento real de bonos ajustados por CER en pesos argentinos.';
     } else if (activeSubtab && activeSubtab.dataset.tab === 'inflacion') {
-      hero.querySelector('h1').textContent = 'vs Inflación';
+      hero.querySelector('h1').textContent = 'Comparación';
       hero.querySelector('p').textContent = 'Compará el rendimiento mensual de tus inversiones contra la inflación.';
     } else {
       hero.querySelector('h1').textContent = '';
@@ -2629,13 +2629,17 @@ async function loadHotMovers() {
   }
 }
 
-// ─── vs Inflación ───
+// ─── Comparación ───
 
 let _inflacionData = null;
 let _inflacionSelected = {}; // { productId: bool }
 
 function tnaToMonthly(tna) {
   return (Math.pow(1 + tna / 100, 30 / 365) - 1) * 100;
+}
+
+function tirToMonthly(tir) {
+  return (Math.pow(1 + tir / 100, 30 / 365) - 1) * 100;
 }
 
 async function loadInflacion() {
@@ -2645,15 +2649,21 @@ async function loadInflacion() {
   chart.innerHTML = '<div class="loading"><div class="loading-spinner"></div><p>Cargando datos...</p></div>';
 
   try {
-    const [inflRes, pfRes, fciRes, configRes] = await Promise.all([
+    const [inflRes, pfRes, pfPeriodicoRes, fciRes, configRes, lecapsRes, cerRes, cerUltimoRes, cerPreciosRes] = await Promise.all([
       fetch('https://api.argentinadatos.com/v1/finanzas/indices/inflacion'),
       fetch('https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijo'),
+      fetch('https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijoUvaPagoPeriodico').catch(() => null),
       fetch('/api/fci'),
       fetch('/api/config'),
+      fetch('/api/lecaps').then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] })),
+      fetch('/api/cer?v=2').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/cer-ultimo').then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch('/api/cer-precios').then(r => r.ok ? r.json() : { data: [] }).catch(() => ({ data: [] })),
     ]);
 
     const inflData = await inflRes.json();
     const pfData = await pfRes.json();
+    const pfPeriodicoData = pfPeriodicoRes ? await pfPeriodicoRes.json() : [];
     const fciData = await fciRes.json();
     const config = await configRes.json();
 
@@ -2662,23 +2672,14 @@ async function loadInflacion() {
     const inflFecha = lastInflacion.fecha;
 
     const products = [];
+    const AR_FLAG = 'data:image/svg+xml,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 18 18"><rect width="18" height="6" fill="#74acdf"/><rect y="6" width="18" height="6" fill="#fff"/><rect y="12" width="18" height="6" fill="#74acdf"/><circle cx="9" cy="9" r="2" fill="#f6b40e"/></svg>');
 
-    // Billeteras
+    // Billeteras (sin especiales)
     const billeteras = (config.garantizados || []).filter(g => g.activo);
     for (const b of billeteras) {
-      const logoSrc = getLogoForItem(b);
       products.push({
         id: 'bil-' + b.id, name: b.nombre, tna: b.tna, monthly: tnaToMonthly(b.tna),
-        category: 'billeteras', logo: b.logo, logoBg: b.logo_bg, logoSrc
-      });
-    }
-    // Especiales
-    const especiales = (config.especiales || []).filter(g => g.activo);
-    for (const b of especiales) {
-      const logoSrc = getLogoForItem(b);
-      products.push({
-        id: 'esp-' + b.id, name: b.nombre, tna: b.tna, monthly: tnaToMonthly(b.tna),
-        category: 'billeteras', logo: b.logo, logoBg: b.logo_bg, logoSrc
+        category: 'billeteras', logo: b.logo, logoBg: b.logo_bg, logoSrc: getLogoForItem(b)
       });
     }
 
@@ -2696,8 +2697,22 @@ async function loadInflacion() {
       });
     }
 
-    // FCIs - all Money Market from config with live TNA
-    const configFcis = (config.fcis || []).filter(f => f.activo && f.categoria === 'Money Market');
+    // Plazo Fijo Periódico (UVA)
+    const bna = Array.isArray(pfPeriodicoData) ? pfPeriodicoData.find(item => item?.id === 'bna' || /naci[oó]n/i.test(item?.entidad || '')) : null;
+    const tasasUva = Array.isArray(bna?.tasas) ? bna.tasas : [];
+    for (const tramo of tasasUva) {
+      const tna = typeof tramo.tna === 'number' ? tramo.tna * 100 : parseFloat(tramo.tna) || 0;
+      if (tna <= 0) continue;
+      const plazo = tramo.plazoMinDias ? `${tramo.plazoMinDias}d` : '';
+      products.push({
+        id: 'pfp-' + (tramo.plazoMinDias || 0), name: `BNA UVA ${plazo}`, tna, monthly: tnaToMonthly(tna),
+        category: 'pfperiodico', logo: 'BN', logoBg: stringToColor('Banco Nación UVA'),
+        logoSrc: PLAZO_FIJO_LOGOS['Banco Nación'] || null
+      });
+    }
+
+    // FCIs - all from config with live TNA
+    const configFcis = (config.fcis || []).filter(f => f.activo);
     const fciList = (fciData.data || fciData || []);
     const fciMap = {};
     for (const f of fciList) fciMap[f.nombre] = f;
@@ -2710,6 +2725,65 @@ async function loadInflacion() {
         category: 'fcis', logo: entidad.substring(0, 2).toUpperCase(),
         logoBg: stringToColor(entidad), logoSrc: getLogoForEntity(entidad)
       });
+    }
+
+    // LECAPs / BONCAPs
+    const lecaps = config.lecaps;
+    const livePrices = {};
+    for (const item of (lecapsRes.data || [])) livePrices[item.symbol] = item.price;
+    if (lecaps && lecaps.letras) {
+      const today = new Date();
+      const settlement = typeof getSettlementDate === 'function' ? getSettlementDate(today) : today;
+      for (const l of lecaps.letras.filter(l => l.activo)) {
+        const precio = livePrices[l.ticker] || l.precio;
+        if (!precio || precio <= 0) continue;
+        const vto = parseLocalDate(l.fecha_vencimiento);
+        const dias = Math.max(1, Math.round((vto - settlement) / (1000 * 60 * 60 * 24)));
+        if (dias <= 0) continue;
+        const ganancia = l.pago_final / precio;
+        const tir = (Math.pow(ganancia, 365 / dias) - 1) * 100;
+        products.push({
+          id: 'lecap-' + l.ticker, name: l.ticker + (l.tipo === 'BONCAP' ? ' (BONCAP)' : ''),
+          tna: tir, monthly: tirToMonthly(tir),
+          category: 'lecaps', logo: l.ticker.slice(0, 2), logoBg: '#1a5276', logoSrc: AR_FLAG
+        });
+      }
+    }
+
+    // Bonos CER
+    const cerActual = cerRes?.cer || 0;
+    const bondPrices = (cerPreciosRes.data || []);
+    const bonosCER = config.bonos_cer || {};
+    if (cerActual && bondPrices.length) {
+      const today = new Date();
+      for (const bp of bondPrices) {
+        const bondConfig = bonosCER[bp.symbol];
+        if (!bondConfig || !bondConfig.flujos) continue;
+        const precioARS = bp.c || bp.price;
+        if (!precioARS || precioARS <= 0) continue;
+
+        const cerEmision = bondConfig.cer_emision || 1;
+        let coefCER = cerActual / cerEmision;
+        if (bp.symbol === 'DICP') coefCER *= 1.27;
+
+        let amortAcum = 0;
+        const todosLosFlujos = bondConfig.flujos.map(f => { const vr = 1 - amortAcum; amortAcum += f.amortizacion; return { ...f, vr_antes: vr }; });
+        const flujosAjustados = todosLosFlujos.map(f => {
+          const fecha = parseLocalDate(f.fecha);
+          if (fecha <= today) return null;
+          const flujoNominal = (f.vr_antes * f.tasa_interes * f.base) + f.amortizacion;
+          return { fecha, monto: flujoNominal * coefCER };
+        }).filter(Boolean);
+        if (!flujosAjustados.length) continue;
+
+        const ytm = typeof calcYTM === 'function' ? calcYTM(precioARS / 100, flujosAjustados, today) : 0;
+        if (!ytm || ytm <= 0) continue;
+        products.push({
+          id: 'cer-' + bp.symbol, name: bp.symbol + ' (CER)',
+          tna: ytm, monthly: tirToMonthly(ytm),
+          category: 'cerBonds', logo: bp.symbol.slice(0, 2), logoBg: '#1a5276', logoSrc: AR_FLAG
+        });
+      }
     }
 
     _inflacionData = { inflMensual, inflFecha, products };
@@ -2727,8 +2801,8 @@ async function loadInflacion() {
     const mesLabel = new Date(inflFecha + 'T12:00:00').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' });
     if (srcEl) srcEl.textContent = `Inflación de ${mesLabel}: ${inflMensual}% mensual — Fuente: ArgentinaDatos / INDEC`;
   } catch (e) {
-    console.error('Inflación error:', e);
-    chart.innerHTML = '<div class="loading">Error al cargar datos de inflación.</div>';
+    console.error('Comparación error:', e);
+    chart.innerHTML = '<div class="loading">Error al cargar datos.</div>';
   }
 }
 
@@ -2739,7 +2813,10 @@ function renderInflacionToggles(container) {
   const categories = [
     { key: 'billeteras', label: 'Billeteras y Cuentas' },
     { key: 'plazofijo', label: 'Plazo Fijo' },
-    { key: 'fcis', label: 'Fondos (Money Market)' },
+    { key: 'pfperiodico', label: 'Plazo Fijo Periódico' },
+    { key: 'fcis', label: 'Fondos' },
+    { key: 'lecaps', label: 'LECAPs / BONCAPs' },
+    { key: 'cerBonds', label: 'Bonos CER' },
   ];
 
   let html = '';
@@ -2808,8 +2885,8 @@ function renderInflacionChart() {
     return;
   }
 
-  const sorted = [...visible].sort((a, b) => b.monthly - a.monthly);
-  const allItems = [{ name: 'Inflación (IPC)', monthly: inflMensual, isInflation: true }, ...sorted];
+  const inflItem = { name: 'Inflación (IPC)', monthly: inflMensual, isInflation: true };
+  const allItems = [...visible, inflItem].sort((a, b) => b.monthly - a.monthly);
   const maxVal = Math.max(...allItems.map(i => i.monthly));
   const minVal = Math.min(...allItems.map(i => i.monthly));
 
