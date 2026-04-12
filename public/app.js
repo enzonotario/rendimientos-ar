@@ -985,9 +985,11 @@ function formatPlazoRange(minDias, maxDias) {
 async function loadPlazoFijoUvaPeriodico() {
   const container = document.getElementById('plazofijo-uva-periodico-list');
   const source = document.getElementById('plazofijo-uva-periodico-source');
+  const chart = document.getElementById('plazofijo-uva-periodico-chart');
   if (!container) return;
 
   container.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando UVA periódico...</p></div>`;
+  if (chart) chart.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando gráfico...</p></div>`;
   if (source) source.textContent = '';
 
   try {
@@ -1031,12 +1033,28 @@ async function loadPlazoFijoUvaPeriodico() {
       container.appendChild(card);
     });
 
+    if (chart) {
+      const chartItems = sorted.map((tramo) => {
+        const shortLabel = tramo.plazoMinDias != null && tramo.plazoMaxDias != null
+          ? `${tramo.plazoMinDias}-${tramo.plazoMaxDias}`
+          : formatPlazoRange(tramo.plazoMinDias, tramo.plazoMaxDias).replace(/\s*d[ií]as?/gi, '').replace(/\s+/g, '');
+        return {
+          tna: Number(tramo.tna) * 100,
+          nombre: shortLabel,
+          logo: shortLabel.split('-')[0].slice(0, 3),
+          logoBg: stringToColor(`UVA ${shortLabel}`)
+        };
+      });
+      renderRendimientosChart(chartItems, 'plazofijo-uva-periodico-chart', { vertical: true, maxItems: 8 });
+    }
+
     if (source) {
       source.innerHTML = 'Fuente: <a href="https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijoUvaPagoPeriodico" target="_blank" rel="noopener noreferrer">ArgentinaDatos API</a>';
     }
   } catch (e) {
     console.error('Error loading plazo fijo UVA pago periódico:', e);
     container.innerHTML = '<div class="loading">Error al cargar datos de UVA periódico.</div>';
+    if (chart) chart.innerHTML = '<div class="loading">Error al cargar el gráfico.</div>';
   }
 }
 
