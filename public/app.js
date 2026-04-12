@@ -953,9 +953,81 @@ const PLAZO_FIJO_LOGOS = {
   'Crédito Regional': '/logos/Crédito_Regional.png',
 };
 
+function formatPercentFromDecimal(value, digits = 2) {
+  if (value == null || Number.isNaN(Number(value))) return '—';
+  return `${(Number(value) * 100).toFixed(digits)}%`;
+}
+
+function formatPlazoRange(minDias, maxDias) {
+  if (minDias == null && maxDias == null) return 'Plazo no informado';
+  if (minDias != null && maxDias != null && minDias === maxDias) return `${minDias} días`;
+  if (minDias != null && maxDias != null) return `${minDias} a ${maxDias} días`;
+  if (minDias != null) return `${minDias}+ días`;
+  return `Hasta ${maxDias} días`;
+}
+
+async function loadPlazoFijoUvaPeriodico() {
+  const container = document.getElementById('plazofijo-uva-periodico-list');
+  const source = document.getElementById('plazofijo-uva-periodico-source');
+  if (!container) return;
+
+  container.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando UVA periódico...</p></div>`;
+  if (source) source.textContent = '';
+
+  try {
+    const res = await fetch('https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijoUvaPagoPeriodico');
+    if (!res.ok) throw new Error(`API error: ${res.status}`);
+
+    const entidades = await res.json();
+    const bna = Array.isArray(entidades)
+      ? entidades.find(item =>
+        item?.id === 'bna' ||
+        /naci[oó]n/i.test(item?.entidad || '')
+      )
+      : null;
+
+    const tasas = Array.isArray(bna?.tasas) ? [...bna.tasas] : [];
+    if (!tasas.length) {
+      container.innerHTML = '<div class="loading">No se encontraron tramos vigentes para UVA periódico.</div>';
+      return;
+    }
+
+    const sorted = tasas.sort((a, b) => (a.plazoMinDias || 0) - (b.plazoMinDias || 0));
+    container.innerHTML = '';
+
+    sorted.forEach((tramo) => {
+      const plazo = formatPlazoRange(tramo.plazoMinDias, tramo.plazoMaxDias);
+      const card = createCard({
+        logo: 'BN',
+        logoBg: stringToColor('Banco Nación UVA'),
+        logoSrc: PLAZO_FIJO_LOGOS['Banco Nación'] || bna.logo || null,
+        name: `Banco Nación · ${plazo}`,
+        description: 'Interés pagado en subperíodos de 30 días',
+        tags: [
+          { text: 'UVA', type: 'billetera' },
+          { text: 'Pago periódico', type: 'fci' }
+        ],
+        rate: formatPercentFromDecimal(tramo.tna),
+        rateLabel: `TNA · TEA ${formatPercentFromDecimal(tramo.tea)}`,
+        rateDate: 'Fuente: ArgentinaDatos'
+      });
+
+      container.appendChild(card);
+    });
+
+    if (source) {
+      source.innerHTML = 'Fuente: <a href="https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijoUvaPagoPeriodico" target="_blank" rel="noopener noreferrer">ArgentinaDatos API</a>';
+    }
+  } catch (e) {
+    console.error('Error loading plazo fijo UVA pago periódico:', e);
+    container.innerHTML = '<div class="loading">Error al cargar datos de UVA periódico.</div>';
+  }
+}
+
 async function loadPlazoFijo() {
   const container = document.getElementById('plazofijo-list');
   container.innerHTML = `<div class="loading"><div class="loading-spinner"></div><p>Cargando tasas...</p></div>`;
+  loadPlazoFijoUvaPeriodico();
 
   try {
     const res = await fetch('https://api.argentinadatos.com/v1/finanzas/tasas/plazoFijo');
