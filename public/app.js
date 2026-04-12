@@ -572,7 +572,7 @@ function setupTabs() {
       document.getElementById('tab-plazofijoperiodico').style.display = target === 'plazofijoperiodico' ? '' : 'none';
       document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
       document.getElementById('tab-cer').style.display = target === 'cer' ? '' : 'none';
-      document.getElementById('tab-inflacion').style.display = target === 'inflacion' ? '' : 'none';
+      document.getElementById('tab-inflacion').style.display = target === 'comparador' ? '' : 'none';
       document.getElementById('tab-soberanos').style.display = 'none';
 
       const hero = document.getElementById('hero');
@@ -600,7 +600,7 @@ function setupTabs() {
         if (!document.getElementById('cer-list').hasChildNodes()) {
           loadCER();
         }
-      } else if (target === 'inflacion') {
+      } else if (target === 'comparador') {
         hero.querySelector('h1').textContent = 'Comparador';
         hero.querySelector('p').textContent = 'Compará el rendimiento mensual de tus inversiones contra la inflación.';
         if (!document.getElementById('inflacion-chart').hasChildNodes()) {
@@ -611,7 +611,7 @@ function setupTabs() {
         hero.querySelector('p').textContent = '';
       }
       // Update hash for sub-tabs
-      location.hash = target === 'billeteras' ? 'ars' : target;
+      location.hash = target === 'billeteras' ? 'ars' : target === 'inflacion' ? 'comparador' : target;
     });
   });
 
@@ -717,7 +717,7 @@ function setupTabs() {
       document.getElementById('tab-plazofijoperiodico').style.display = target === 'plazofijoperiodico' ? '' : 'none';
       document.getElementById('tab-lecaps').style.display = target === 'lecaps' ? '' : 'none';
       document.getElementById('tab-cer').style.display = target === 'cer' ? '' : 'none';
-      document.getElementById('tab-inflacion').style.display = target === 'inflacion' ? '' : 'none';
+      document.getElementById('tab-inflacion').style.display = target === 'comparador' ? '' : 'none';
     } else {
       document.getElementById('tab-billeteras').style.display = '';
       document.getElementById('tab-plazofijo').style.display = 'none';
@@ -740,7 +740,7 @@ function setupTabs() {
     } else if (activeSubtab && activeSubtab.dataset.tab === 'cer') {
       hero.querySelector('h1').textContent = 'Bonos CER';
       hero.querySelector('p').textContent = 'Rendimiento real de bonos ajustados por CER en pesos argentinos.';
-    } else if (activeSubtab && activeSubtab.dataset.tab === 'inflacion') {
+    } else if (activeSubtab && activeSubtab.dataset.tab === 'comparador') {
       hero.querySelector('h1').textContent = 'Comparador';
       hero.querySelector('p').textContent = 'Compará el rendimiento mensual de tus inversiones contra la inflación.';
     } else {
@@ -885,7 +885,7 @@ function setupTabs() {
   else if (initialHash === 'plazofijoperiodico') { switchToArs(); document.querySelector('.subnav-tab[data-tab="plazofijoperiodico"]')?.click(); }
   else if (initialHash === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
   else if (initialHash === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
-  else if (initialHash === 'inflacion') { switchToArs(); document.querySelector('.subnav-tab[data-tab="inflacion"]')?.click(); }
+  else if (initialHash === 'comparador') { switchToArs(); document.querySelector('.subnav-tab[data-tab="inflacion"]')?.click(); }
   else if (initialHash === 'hipotecarios') switchToHipotecarios();
   else if (initialHash === 'dolar') switchToDolar();
   else if (initialHash === 'pix') switchToPix();
@@ -907,7 +907,7 @@ function setupTabs() {
     else if (h === 'plazofijoperiodico') { switchToArs(); document.querySelector('.subnav-tab[data-tab="plazofijoperiodico"]')?.click(); }
     else if (h === 'lecaps') { switchToArs(); document.querySelector('.subnav-tab[data-tab="lecaps"]')?.click(); }
     else if (h === 'cer') { switchToArs(); document.querySelector('.subnav-tab[data-tab="cer"]')?.click(); }
-    else if (h === 'inflacion') { switchToArs(); document.querySelector('.subnav-tab[data-tab="inflacion"]')?.click(); }
+    else if (h === 'comparador') { switchToArs(); document.querySelector('.subnav-tab[data-tab="inflacion"]')?.click(); }
     else if (h === 'hipotecarios') switchToHipotecarios();
     else if (h === 'dolar') switchToDolar();
     else if (h === 'pix') switchToPix();
