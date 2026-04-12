@@ -2889,6 +2889,9 @@ function renderInflacionChart() {
   const allItems = [...visible, inflItem].sort((a, b) => b.monthly - a.monthly);
   const maxVal = Math.max(...allItems.map(i => i.monthly));
   const minVal = Math.min(...allItems.map(i => i.monthly));
+  // Use a floor so bar differences are more visible
+  const chartMin = minVal * 0.85;
+  const chartRange = maxVal - chartMin || 1;
 
   function getBarColor(val) {
     const ratio = (val - minVal) / (maxVal - minVal || 1);
@@ -2896,7 +2899,7 @@ function renderInflacionChart() {
   }
 
   const rows = allItems.map(item => {
-    const pct = Math.max(5, (item.monthly / maxVal) * 100);
+    const pct = Math.max(8, ((item.monthly - chartMin) / chartRange) * 100);
     const color = item.isInflation ? 'var(--yellow, #f9ab00)' : getBarColor(item.monthly);
 
     let logoHtml;
@@ -2911,15 +2914,16 @@ function renderInflacionChart() {
       logoHtml = `<div class="chart-logo" style="background:${logoBg}">${logoInner}</div>`;
     }
 
+    const label = item.name;
     return `
       <div class="chart-row inflacion-row${item.isInflation ? ' inflacion-baseline' : ''}">
         ${logoHtml}
         <div class="chart-bar-wrap">
           <div class="chart-bar" style="width:${pct}%;background:${color}">
+            <span class="chart-bar-label">${label}</span>
             <span class="chart-value">${item.monthly.toFixed(2)}%</span>
           </div>
         </div>
-        <span class="inflacion-label">${item.name}</span>
       </div>`;
   }).join('');
 
