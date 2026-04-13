@@ -257,7 +257,7 @@ app.get('/api/cer-precios', async (req, res) => {
     const response = await fetch('https://data912.com/live/arg_bonds');
     const data = await response.json();
     
-    const TICKERS_CER = ['TZX26', 'TZXO6', 'TX26', 'TZXD6', 'TZXM7', 'TZX27', 'TZXD7', 'TZX28', 'TX28', 'DICP', 'PARP'];
+    const TICKERS_CER = ['TZX26', 'TZXO6', 'TX26', 'TZXD6', 'TZXM7', 'TZX27', 'TZXD7', 'TZX28', 'TX28', 'TX31', 'DICP', 'PARP'];
     
     const bondsArray = Array.isArray(data) ? data : (data.data || []);
     const bonosCER = bondsArray.filter(bond => TICKERS_CER.includes(bond.symbol));
