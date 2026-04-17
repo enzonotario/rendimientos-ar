@@ -1,89 +1,91 @@
-// ─── Supabase Auth ───
-let supabaseClient = null;
-let currentUser = null;
-let _portfolioConfig = null; // cached config for portfolio use
+// Register chartjs-plugin-datalabels globally (UMD exposes window.ChartDataLabels).
+// Disabled by default — enabled per-chart via options.plugins.datalabels.display = true.
+if (typeof Chart !== 'undefined' && typeof ChartDataLabels !== 'undefined') {
+  Chart.register(ChartDataLabels);
+  Chart.defaults.set('plugins.datalabels.display', false);
+}
 
-async function initSupabase() {
-  try {
-    const resp = await fetch('/api/auth-config');
-    const { url, anonKey } = await resp.json();
-    if (!url || !anonKey) return;
-    supabaseClient = window.supabase.createClient(url, anonKey, {
-      auth: { flowType: 'pkce' }
-    });
+// ─── Chart theme helper (reads CSS vars, theme-aware) ───
+function getChartTheme() {
+  const css = getComputedStyle(document.documentElement);
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const read = (name, fallback) => (css.getPropertyValue(name).trim() || fallback);
+  return {
+    isDark,
+    text: read('--text-secondary', isDark ? '#a0a0a8' : '#555'),
+    textMuted: read('--text-tertiary', isDark ? '#707078' : '#888'),
+    grid: isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+    gridAxis: isDark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.12)',
+    bg: read('--bg', isDark ? '#0a0a0b' : '#fff'),
+    bgSubtle: read('--bg-subtle', isDark ? '#16161a' : '#f7f7f8'),
+    border: read('--border', isDark ? '#26262a' : '#e5e5e8'),
+    tooltipBg: isDark ? 'rgba(20,20,24,0.96)' : 'rgba(255,255,255,0.98)',
+    tooltipText: read('--text', isDark ? '#e8e8ee' : '#111'),
+    font: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif",
+  };
+}
 
-    // Handle PKCE OAuth callback (code in query params)
-    const params = new URLSearchParams(location.search);
-    if (params.has('code')) {
-      const { data: { session }, error } = await supabaseClient.auth.exchangeCodeForSession(params.get('code'));
-      if (session) {
-        currentUser = session.user;
-        updateAuthUI();
-        history.replaceState(null, '', location.pathname + '#portfolio');
-        if (window._switchToPortfolio) window._switchToPortfolio();
-        // Ensure portfolio loads after OAuth redirect
-        setTimeout(() => loadPortfolio(), 100);
-        return;
+// Registry of scatter chart renderers (so we can re-render them on theme change).
+const _chartRerenderers = new Set();
+function registerChartRerender(fn) { _chartRerenderers.add(fn); }
+window.addEventListener('themechange', () => { _chartRerenderers.forEach(fn => { try { fn(); } catch(e) {} }); });
+
+// Shared Chart.js scatter options factory (polished, theme-aware)
+function buildScatterOptions({ xTitle, yTitle, tooltipFormatter, yTickFormatter }) {
+  const T = getChartTheme();
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    layout: { padding: { top: 14, right: 24, bottom: 6, left: 6 } },
+    interaction: { mode: 'nearest', intersect: true },
+    plugins: {
+      legend: {
+        position: 'top', align: 'end',
+        labels: {
+          color: T.text, font: { family: T.font, size: 12, weight: '500' },
+          boxWidth: 10, boxHeight: 10, usePointStyle: true,
+          filter: (item) => !/curva/i.test(item.text || ''),
+        }
+      },
+      tooltip: {
+        backgroundColor: T.tooltipBg, titleColor: T.tooltipText, bodyColor: T.tooltipText,
+        borderColor: T.border, borderWidth: 1, padding: 10,
+        titleFont: { family: T.font, size: 12, weight: '600' },
+        bodyFont: { family: T.font, size: 12 },
+        displayColors: false, cornerRadius: 6,
+        filter: (item) => !/curva/i.test(item.dataset?.label || ''),
+        callbacks: tooltipFormatter ? { label: tooltipFormatter } : undefined,
+      },
+      datalabels: {
+        display: (ctx) => {
+          const label = ctx.dataset?.label || '';
+          if (/curva/i.test(label)) return false;
+          return ctx.raw && (ctx.raw.label || ctx.raw.ticker);
+        },
+        align: 'top', anchor: 'end', offset: 6,
+        color: T.text,
+        font: { family: T.font, size: 10, weight: '600' },
+        formatter: (value) => value?.label || value?.ticker || '',
+        textStrokeColor: T.bg, textStrokeWidth: 3,
+      }
+    },
+    scales: {
+      x: {
+        type: 'linear',
+        title: { display: !!xTitle, text: xTitle || '', color: T.textMuted, font: { family: T.font, size: 11, weight: '500' } },
+        grid: { color: T.grid, drawTicks: false },
+        border: { color: T.gridAxis },
+        ticks: { color: T.textMuted, font: { family: T.font, size: 11 }, padding: 6 },
+      },
+      y: {
+        type: 'linear',
+        title: { display: !!yTitle, text: yTitle || '', color: T.textMuted, font: { family: T.font, size: 11, weight: '500' } },
+        grid: { color: T.grid, drawTicks: false },
+        border: { color: T.gridAxis },
+        ticks: { color: T.textMuted, font: { family: T.font, size: 11 }, padding: 6, callback: yTickFormatter || ((v) => v) },
       }
     }
-
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-      currentUser = session.user;
-      updateAuthUI(); // handles portfolio-login-prompt / portfolio-content visibility
-      // If user is on portfolio tab, load holdings now that we have the session
-      if (location.hash === '#portfolio') loadPortfolio();
-    }
-
-    supabaseClient.auth.onAuthStateChange((event, session) => {
-      currentUser = session?.user || null;
-      updateAuthUI();
-    });
-
-    // Track page view (fire and forget, once per session)
-    if (!sessionStorage.getItem('pv_tracked')) {
-      supabaseClient.from('page_views').insert({
-        path: (location.hash || '/').slice(0, 200),
-        referrer: (document.referrer || '').slice(0, 500) || null,
-      }).catch(() => {});
-      sessionStorage.setItem('pv_tracked', '1');
-    }
-  } catch (e) {
-    console.warn('Supabase init skipped:', e.message);
-  }
-}
-
-async function loginWithGoogle() {
-  if (!supabaseClient) return;
-  await supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin + '/#portfolio' }
-  });
-}
-
-async function logout() {
-  if (!supabaseClient) return;
-  await supabaseClient.auth.signOut();
-  currentUser = null;
-  updateAuthUI();
-  if (location.hash === '#portfolio') location.hash = 'mundo';
-}
-
-function updateAuthUI() {
-  const userDiv = document.getElementById('auth-user');
-  const avatar = document.getElementById('auth-avatar');
-  const portfolioLoginPrompt = document.getElementById('portfolio-login-prompt');
-  const portfolioContent = document.getElementById('portfolio-content');
-  if (currentUser) {
-    if (userDiv) userDiv.style.display = 'flex';
-    if (avatar) avatar.src = currentUser.user_metadata?.avatar_url || '';
-    if (portfolioLoginPrompt) portfolioLoginPrompt.style.display = 'none';
-    if (portfolioContent) portfolioContent.style.display = '';
-  } else {
-    if (userDiv) userDiv.style.display = 'none';
-    if (portfolioLoginPrompt) portfolioLoginPrompt.style.display = '';
-    if (portfolioContent) portfolioContent.style.display = 'none';
-  }
+  };
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -97,12 +99,6 @@ document.addEventListener('DOMContentLoaded', () => {
   loadEarnings();
   loadCotizaciones();
   loadNewsTicker();
-  initSupabase();
-
-  // Auth event listeners
-  document.getElementById('auth-logout-btn')?.addEventListener('click', logout);
-  document.getElementById('portfolio-google-login')?.addEventListener('click', loginWithGoogle);
-  document.getElementById('portfolio-add-btn')?.addEventListener('click', openAddHoldingModal);
 });
 
 function setupThemeToggle() {
@@ -118,6 +114,7 @@ function setupThemeToggle() {
     const next = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
     localStorage.setItem('theme', next);
+    window.dispatchEvent(new Event('themechange'));
   });
 }
 
@@ -630,11 +627,7 @@ function setupTabs() {
   const headerDolar = document.getElementById('header-dolar');
   const headerBcra = document.getElementById('header-bcra');
   const headerMundial = document.getElementById('header-mundial');
-  const headerPortfolio = document.getElementById('header-portfolio');
-
   const headerPix = document.getElementById('header-pix');
-
-  const sectionHome = document.getElementById('section-home');
 
   function hideAllTabs() {
     document.getElementById('tab-billeteras').style.display = 'none';
@@ -646,24 +639,17 @@ function setupTabs() {
     document.getElementById('tab-ons').style.display = 'none';
     document.getElementById('tab-soberanos').style.display = 'none';
     document.getElementById('section-mundo').style.display = 'none';
-    document.getElementById('tab-portfolio').style.display = 'none';
-
     document.getElementById('tab-dolar').style.display = 'none';
     document.getElementById('tab-pix').style.display = 'none';
     document.getElementById('tab-bcra').style.display = 'none';
     document.getElementById('tab-mundial').style.display = 'none';
-    if (sectionHome) sectionHome.classList.remove('active');
     document.querySelector('.container').style.display = '';
-    [headerArs, headerSoberanos, headerONs, headerMundo, headerHipotecarios, headerDolar, headerPix, headerBcra, headerMundial, headerPortfolio].forEach(b => b && b.classList.remove('active'));
+    [headerArs, headerSoberanos, headerONs, headerMundo, headerHipotecarios, headerDolar, headerPix, headerBcra, headerMundial].forEach(b => b && b.classList.remove('active'));
     hero.style.display = '';
   }
 
   function switchToHome() {
-    hideAllTabs();
-    if (sectionHome) sectionHome.classList.add('active');
-    hero.style.display = 'none';
-    subnav.style.display = 'none';
-    document.querySelector('.container').style.display = 'none';
+    switchToMundo();
     updatePageTitle('home');
   }
 
@@ -681,29 +667,9 @@ function setupTabs() {
       bcra: 'Indicadores BCRA',
       dolar: 'Dolar',
       pix: 'PIX Brasil',
-      portfolio: 'Mi Portfolio',
       mundial: 'Mundial 2026',
     };
     document.title = titles[section] ? `${titles[section]} — ${base}` : base;
-  }
-
-  function switchToPortfolio() {
-    hideAllTabs();
-    headerPortfolio.classList.add('active');
-    subnav.style.display = 'none';
-    document.getElementById('tab-portfolio').style.display = 'block';
-    hero.querySelector('h1').textContent = '';
-    hero.querySelector('p').textContent = '';
-    hero.style.display = 'none';
-    updatePageTitle('portfolio');
-    if (currentUser) {
-      document.getElementById('portfolio-login-prompt').style.display = 'none';
-      document.getElementById('portfolio-content').style.display = '';
-      loadPortfolio();
-    } else {
-      document.getElementById('portfolio-login-prompt').style.display = '';
-      document.getElementById('portfolio-content').style.display = 'none';
-    }
   }
 
   function switchToArs() {
@@ -874,9 +840,7 @@ function setupTabs() {
   if (headerPix) headerPix.addEventListener('click', (e) => { e.preventDefault(); switchToPix(); location.hash = 'pix'; });
   if (headerBcra) headerBcra.addEventListener('click', (e) => { e.preventDefault(); switchToBcra(); location.hash = 'bcra'; });
   if (headerMundial) headerMundial.addEventListener('click', (e) => { e.preventDefault(); switchToMundial(); location.hash = 'mundial'; });
-  if (headerPortfolio) headerPortfolio.addEventListener('click', (e) => { e.preventDefault(); switchToPortfolio(); location.hash = 'portfolio'; });
 
-  window._switchToPortfolio = switchToPortfolio;
 
   // Handle initial hash on page load
   const initialHash = location.hash.replace('#', '');
@@ -894,7 +858,6 @@ function setupTabs() {
   else if (initialHash === 'bcra') switchToBcra();
   else if (initialHash === 'ons') switchToONs();
   else if (initialHash === 'mundial') switchToMundial();
-  else if (initialHash === 'portfolio') switchToPortfolio();
   else switchToMundo();
 
   // Handle back/forward navigation (skip if subnav tab already active)
@@ -916,7 +879,6 @@ function setupTabs() {
     else if (h === 'bcra') switchToBcra();
     else if (h === 'ons') switchToONs();
     else if (h === 'mundial') switchToMundial();
-    else if (h === 'portfolio') switchToPortfolio();
     else if (h === 'mundo') switchToMundo();
     else switchToHome();
     _hashChanging = false;
@@ -1793,96 +1755,59 @@ async function loadLecaps() {
   }
 }
 
+let _lecapChart = null;
+let _lecapItems = null;
 function renderLecapScatter(items) {
+  _lecapItems = items;
   const canvas = document.getElementById('lecaps-scatter');
   if (!canvas || typeof Chart === 'undefined') return;
+  if (_lecapChart) _lecapChart.destroy();
 
-  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-  const textColor = '#555555';
-  const gridColor = '#1a1a1a';
-
+  const C_LECAP = '#00d26a';
+  const C_BONCAP = '#4da6ff';
   const lecapData = items.filter(l => !l.ticker.startsWith('T'));
   const boncapData = items.filter(l => l.ticker.startsWith('T'));
 
-  // Polynomial regression (degree 2) for trend curve
   const allPoints = items.map(l => [l.dias, l.tir]).sort((a, b) => a[0] - b[0]);
-  const curve = fitPolyCurve(allPoints, 2, 50);
+  const curve = allPoints.length >= 3 ? fitPolyCurve(allPoints, 2, 300) : [];
 
-  new Chart(canvas, {
-    type: 'scatter',
-    data: {
-      datasets: [
-        {
-          label: 'Curva',
-          data: curve,
-          type: 'line',
-          borderColor: isDark ? 'rgba(160,160,168,0.4)' : 'rgba(0,0,0,0.15)',
-          borderWidth: 2,
-          borderDash: [6, 3],
-          pointRadius: 0,
-          pointHoverRadius: 0,
-          tension: 0.4,
-          fill: false,
-          order: 2,
-        },
-        {
-          label: 'LECAP',
-          data: lecapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker })),
-          backgroundColor: '#00d26a',
-          borderColor: '#00d26a',
-          pointRadius: 7,
-          pointHoverRadius: 10,
-          order: 1,
-        },
-        {
-          label: 'BONCAP',
-          data: boncapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker })),
-          backgroundColor: '#4da6ff',
-          borderColor: '#4da6ff',
-          pointRadius: 7,
-          pointHoverRadius: 10,
-          pointStyle: 'rectRounded',
-          order: 1,
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      layout: { padding: { top: 10, right: 20, bottom: 5, left: 5 } },
-      plugins: {
-        legend: {
-          labels: {
-            color: textColor,
-            font: { family: "'Inter', sans-serif", size: 12 },
-            filter: (item) => item.text !== 'Curva'
-          }
-        },
-        tooltip: {
-          filter: (item) => item.dataset.label !== 'Curva',
-          callbacks: {
-            label: (ctx) => {
-              const p = ctx.raw;
-              return `${p.ticker}: TIR ${p.y.toFixed(2)}% — ${p.x} días`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          title: { display: true, text: 'Días al vencimiento', color: textColor, font: { family: "'Inter', sans-serif", size: 12 } },
-          grid: { color: gridColor },
-          ticks: { color: textColor, font: { family: "'Inter', sans-serif" } }
-        },
-        y: {
-          title: { display: true, text: 'TIR (%)', color: textColor, font: { family: "'Inter', sans-serif", size: 12 } },
-          grid: { color: gridColor },
-          ticks: { color: textColor, font: { family: "'Inter', sans-serif" }, callback: v => v.toFixed(1) + '%' }
-        }
-      }
+  const T = getChartTheme();
+  const datasets = [];
+  if (curve.length) {
+    datasets.push({
+      label: 'Curva', data: curve, type: 'line',
+      borderColor: T.isDark ? 'rgba(180,180,190,0.35)' : 'rgba(0,0,0,0.18)',
+      borderWidth: 1.5, borderDash: [5, 4],
+      pointRadius: 0, pointHoverRadius: 0, fill: false, order: 3,
+      tension: 0.4, cubicInterpolationMode: 'monotone',
+    });
+  }
+  datasets.push({
+    label: 'LECAP',
+    data: lecapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker, label: l.ticker })),
+    backgroundColor: C_LECAP, borderColor: '#fff', borderWidth: 2,
+    pointRadius: 6, pointHoverRadius: 9, order: 1,
+  });
+  datasets.push({
+    label: 'BONCAP',
+    data: boncapData.map(l => ({ x: l.dias, y: l.tir, ticker: l.ticker, label: l.ticker })),
+    backgroundColor: C_BONCAP, borderColor: '#fff', borderWidth: 2,
+    pointRadius: 6, pointHoverRadius: 9, pointStyle: 'rectRounded', order: 1,
+  });
+
+  const options = buildScatterOptions({
+    xTitle: 'Días al vencimiento',
+    yTitle: 'TIR (%)',
+    yTickFormatter: v => v.toFixed(1) + '%',
+    tooltipFormatter: (ctx) => {
+      const p = ctx.raw;
+      return `${p.ticker}: TIR ${p.y.toFixed(2)}% — ${p.x} días`;
     }
   });
+
+  _lecapChart = new Chart(canvas, { type: 'scatter', data: { datasets }, options });
 }
+registerChartRerender(() => { if (_lecapItems) renderLecapScatter(_lecapItems); });
 
 // Fit polynomial of given degree, return n evenly-spaced {x,y} points
 function fitPolyCurve(points, degree, n) {
@@ -2237,217 +2162,56 @@ function openSoberanoCalculator(item) {
 }
 
 let soberanosChart = null;
+let _soberanosChartItems = null;
 function renderYieldCurve(items) {
+  _soberanosChartItems = items;
   const canvas = document.getElementById('soberanos-scatter');
   if (!canvas) return;
   if (soberanosChart) soberanosChart.destroy();
 
-  const textColor = '#555555';
-  const gridColor = '#1a1a1a';
-
+  const C_LOCAL = '#ff9500';
+  const C_NY = '#4da6ff';
   const localBonds = items.filter(i => i.ley === 'local');
   const nyBonds = items.filter(i => i.ley === 'NY');
 
-  // Polynomial regression curves (degree 2, 300 points for smoothness)
   const localPoints = localBonds.map(i => [i.duration, i.ytm]);
   const nyPoints = nyBonds.map(i => [i.duration, i.ytm]);
   const localCurve = localPoints.length >= 3 ? fitPolyCurve(localPoints, 2, 300) : [];
   const nyCurve = nyPoints.length >= 3 ? fitPolyCurve(nyPoints, 2, 300) : [];
 
-  // Use labels array for x-axis to make line charts work properly
-  // Collect all x values and curve x values, build unified x scale
   const datasets = [];
-
   if (localCurve.length) {
-    datasets.push({
-      label: 'Ley Local (curva)',
-      data: localCurve,
-      borderColor: '#ff9500',
-      borderWidth: 1.5,
-      borderDash: [6, 3],
-      pointRadius: 0,
-      pointHitRadius: 0,
-      fill: false,
-      order: 2,
-    });
+    datasets.push({ label: 'Ley Local (curva)', type: 'line', data: localCurve, borderColor: C_LOCAL + '80', borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, pointHitRadius: 0, fill: false, order: 3, tension: 0.4, cubicInterpolationMode: 'monotone' });
   }
   if (nyCurve.length) {
-    datasets.push({
-      label: 'Ley NY (curva)',
-      data: nyCurve,
-      borderColor: '#4da6ff',
-      borderWidth: 1.5,
-      borderDash: [6, 3],
-      pointRadius: 0,
-      pointHitRadius: 0,
-      fill: false,
-      order: 2,
-    });
+    datasets.push({ label: 'Ley NY (curva)', type: 'line', data: nyCurve, borderColor: C_NY + '80', borderWidth: 1.5, borderDash: [5, 4], pointRadius: 0, pointHitRadius: 0, fill: false, order: 3, tension: 0.4, cubicInterpolationMode: 'monotone' });
   }
-
   datasets.push({
     label: 'Ley Local',
     data: localBonds.map(i => ({ x: i.duration, y: i.ytm, label: i.symbol })),
-    backgroundColor: '#ff9500',
-    borderColor: '#ff9500',
-    borderWidth: 1.5,
-    pointRadius: 7,
-    pointHoverRadius: 9,
-    showLine: false,
-    order: 1,
+    backgroundColor: C_LOCAL, borderColor: '#fff', borderWidth: 2,
+    pointRadius: 6, pointHoverRadius: 9, showLine: false, order: 1,
   });
-
   datasets.push({
     label: 'Ley NY',
     data: nyBonds.map(i => ({ x: i.duration, y: i.ytm, label: i.symbol })),
-    backgroundColor: '#4da6ff',
-    borderColor: '#4da6ff',
-    borderWidth: 1.5,
-    pointRadius: 7,
-    pointHoverRadius: 9,
-    showLine: false,
-    order: 1,
+    backgroundColor: C_NY, borderColor: '#fff', borderWidth: 2,
+    pointRadius: 6, pointHoverRadius: 9, showLine: false, order: 1,
   });
 
-  soberanosChart = new Chart(canvas, {
-    type: 'line',
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: textColor, filter: (item) => !item.text.includes('curva') } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const d = ctx.raw;
-              return `${d.label || ''}: TIR ${d.y?.toFixed(2) || ctx.parsed.y.toFixed(2)}%`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          type: 'linear',
-          title: { display: true, text: 'Duration (años)', color: textColor },
-          grid: { color: gridColor },
-          ticks: { color: textColor },
-        },
-        y: {
-          type: 'linear',
-          title: { display: true, text: 'TIR (%)', color: textColor },
-          grid: { color: gridColor },
-          ticks: { color: textColor, callback: v => v.toFixed(1) + '%' },
-        }
-      }
+  const options = buildScatterOptions({
+    xTitle: 'Duration (años)',
+    yTitle: 'TIR (%)',
+    yTickFormatter: v => v.toFixed(1) + '%',
+    tooltipFormatter: (ctx) => {
+      const d = ctx.raw;
+      return `${d.label || ''}: TIR ${(d.y ?? ctx.parsed.y).toFixed(2)}%`;
     }
   });
+
+  soberanosChart = new Chart(canvas, { type: 'scatter', data: { datasets }, options });
 }
-
-// ─── AI Chat Assistant ───
-(function initChat() {
-  const chatInput = document.getElementById('chat-input');
-  const chatSend = document.getElementById('chat-send');
-  const chatMessages = document.getElementById('chat-messages');
-  const chatSuggestions = document.getElementById('chat-suggestions');
-  if (!chatInput) return;
-
-  let history = [];
-  let isLoading = false;
-
-  // Suggestion buttons
-  chatSuggestions.addEventListener('click', (e) => {
-    const btn = e.target.closest('.chat-suggestion');
-    if (btn) sendMessage(btn.dataset.q);
-  });
-
-  // Send on Enter
-  chatInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage(chatInput.value);
-    }
-  });
-
-  chatSend.addEventListener('click', () => sendMessage(chatInput.value));
-
-  function addMessage(role, content) {
-    chatMessages.classList.add('has-messages');
-    const div = document.createElement('div');
-    div.className = `chat-msg ${role}`;
-    const bubble = document.createElement('div');
-    bubble.className = 'chat-msg-bubble';
-    // Simple markdown: **bold**, bullet lists, newlines
-    let html = content
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-      .replace(/^- (.+)/gm, '<li>$1</li>')
-      .replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>')
-      .replace(/\n/g, '<br>');
-    bubble.innerHTML = html;
-    div.appendChild(bubble);
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  function showTyping() {
-    const div = document.createElement('div');
-    div.className = 'chat-msg assistant';
-    div.id = 'chat-typing';
-    div.innerHTML = `<div class="chat-typing"><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div><div class="chat-typing-dot"></div></div>`;
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-  }
-
-  function hideTyping() {
-    const el = document.getElementById('chat-typing');
-    if (el) el.remove();
-  }
-
-  async function sendMessage(text) {
-    if (!text || !text.trim() || isLoading) return;
-    text = text.trim();
-    chatInput.value = '';
-
-    // Hide suggestions after first message
-    if (chatSuggestions) chatSuggestions.style.display = 'none';
-
-    addMessage('user', text);
-    history.push({ role: 'user', content: text });
-
-    isLoading = true;
-    chatSend.disabled = true;
-    chatInput.disabled = true;
-    showTyping();
-
-    try {
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: text, history: history.slice(-6) }),
-      });
-
-      hideTyping();
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        addMessage('assistant', err.error || 'Error al consultar el asistente. Intentá de nuevo.');
-      } else {
-        const data = await res.json();
-        addMessage('assistant', data.response);
-        history.push({ role: 'assistant', content: data.response });
-      }
-    } catch (e) {
-      hideTyping();
-      addMessage('assistant', 'Error de conexión. Intentá de nuevo.');
-    }
-
-    isLoading = false;
-    chatSend.disabled = false;
-    chatInput.disabled = false;
-    chatInput.focus();
-  }
-})();
+registerChartRerender(() => { if (_soberanosChartItems) renderYieldCurve(_soberanosChartItems); });
 
 // ─── Mundo (Global Monitor) ───
 function drawSparkline(canvasId, data, isUp) {
@@ -3542,79 +3306,47 @@ function openCERCalculator(item) {
 }
 
 let cerChart = null;
+let _cerChartItems = null;
 function renderCERCurve(items) {
+  _cerChartItems = items;
   const canvas = document.getElementById('cer-scatter');
   if (!canvas) return;
   if (cerChart) cerChart.destroy();
 
-  const textColor = '#555555';
-  const gridColor = '#1a1a1a';
-
-  // Polynomial regression curve (degree 2, 300 points for smoothness)
+  const C_POINT = '#00d26a';
+  const C_CURVE = '#ff9500';
   const points = items.map(i => [i.duration, i.ytm]);
   const curve = points.length >= 3 ? fitPolyCurve(points, 2, 300) : [];
 
   const datasets = [];
-
   if (curve.length) {
     datasets.push({
-      label: 'Bonos CER (curva)',
-      data: curve,
-      borderColor: '#ff9500',
-      borderWidth: 1.5,
-      borderDash: [6, 3],
-      pointRadius: 0,
-      pointHitRadius: 0,
-      fill: false,
-      order: 2,
+      label: 'Bonos CER (curva)', type: 'line', data: curve,
+      borderColor: C_CURVE + '80', borderWidth: 1.5, borderDash: [5, 4],
+      pointRadius: 0, pointHitRadius: 0, fill: false, order: 3,
+      tension: 0.4, cubicInterpolationMode: 'monotone',
     });
   }
-
   datasets.push({
     label: 'Bonos CER',
     data: items.map(i => ({ x: i.duration, y: i.ytm, label: i.symbol })),
-    backgroundColor: '#00d26a',
-    borderColor: '#00d26a',
-    borderWidth: 1.5,
-    pointRadius: 7,
-    pointHoverRadius: 9,
-    showLine: false,
-    order: 1,
+    backgroundColor: C_POINT, borderColor: '#fff', borderWidth: 2,
+    pointRadius: 6, pointHoverRadius: 9, showLine: false, order: 1,
   });
 
-  cerChart = new Chart(canvas, {
-    type: 'line',
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { labels: { color: textColor, filter: (item) => !item.text.includes('curva') } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) => {
-              const d = ctx.raw;
-              return `${d.label || ''}: TIR Real ${d.y?.toFixed(2) || ctx.parsed.y.toFixed(2)}%`;
-            }
-          }
-        }
-      },
-      scales: {
-        x: {
-          type: 'linear',
-          title: { display: true, text: 'Duration (años)', color: textColor },
-          grid: { color: gridColor },
-          ticks: { color: textColor },
-        },
-        y: {
-          title: { display: true, text: 'TIR Real (%)', color: textColor },
-          grid: { color: gridColor },
-          ticks: { color: textColor },
-        }
-      }
+  const options = buildScatterOptions({
+    xTitle: 'Duration (años)',
+    yTitle: 'TIR Real (%)',
+    yTickFormatter: v => v.toFixed(1) + '%',
+    tooltipFormatter: (ctx) => {
+      const d = ctx.raw;
+      return `${d.label || ''}: TIR Real ${(d.y ?? ctx.parsed.y).toFixed(2)}%`;
     }
   });
+
+  cerChart = new Chart(canvas, { type: 'scatter', data: { datasets }, options });
 }
+registerChartRerender(() => { if (_cerChartItems) renderCERCurve(_cerChartItems); });
 
 
 // ─── ONs (Obligaciones Negociables) section ───
@@ -3684,36 +3416,47 @@ function renderONsTable(container, items) {
   });
 }
 
+let _onsItems = null;
 function renderONsYieldCurve(items) {
+  _onsItems = items;
   const canvas = document.getElementById('ons-scatter');
   if (!canvas) return;
   if (onsChart) onsChart.destroy();
-  const textColor = '#555555';
-  const gridColor = '#1a1a1a';
+
+  const C_POINT = '#00d26a';
+  const C_CURVE = '#ff9500';
   const points = items.map(i => ({ x: i.duration, y: i.ytm, label: i.d912Ticker }));
-  const curvePoints = points.length >= 3 ? fitPolyCurve(points.map(p => [p.x, p.y]), 2, 200) : [];
+  const curvePoints = points.length >= 3 ? fitPolyCurve(points.map(p => [p.x, p.y]), 2, 300) : [];
+
   const datasets = [{
-    label: 'ONs', data: points, backgroundColor: '#00d26a', borderColor: '#00d26a',
-    pointRadius: 5, pointHoverRadius: 7, showLine: false,
+    label: 'ONs', data: points,
+    backgroundColor: C_POINT, borderColor: '#fff', borderWidth: 2,
+    pointRadius: 6, pointHoverRadius: 9, showLine: false, order: 1,
   }];
   if (curvePoints.length > 0) {
     datasets.push({
-      label: 'Curva', data: curvePoints, borderColor: '#ff9500', borderWidth: 1.5,
-      borderDash: [4, 3], pointRadius: 0, showLine: true, tension: 0, fill: false,
+      label: 'Curva', type: 'line', data: curvePoints,
+      borderColor: C_CURVE + '80', borderWidth: 1.5, borderDash: [5, 4],
+      pointRadius: 0, showLine: true, fill: false, order: 3,
+      tension: 0.4, cubicInterpolationMode: 'monotone',
     });
   }
-  onsChart = new Chart(canvas, {
-    type: 'scatter', data: { datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { display: false }, tooltip: { backgroundColor: '#1a1a1a', titleColor: '#ff9500', bodyColor: '#e0e0e0', borderColor: '#333', borderWidth: 1, callbacks: { label: ctx => { const p = ctx.raw; return p.label ? `${p.label}: ${p.y.toFixed(2)}%` : `${p.y.toFixed(2)}%`; } } } },
-      scales: {
-        x: { type: 'linear', title: { display: true, text: 'Duration (años)', color: textColor }, grid: { color: gridColor }, ticks: { color: textColor } },
-        y: { type: 'linear', title: { display: true, text: 'TIR (%)', color: textColor }, grid: { color: gridColor }, ticks: { color: textColor, callback: v => v.toFixed(1) + '%' } }
-      }
+
+  const options = buildScatterOptions({
+    xTitle: 'Duration (años)',
+    yTitle: 'TIR (%)',
+    yTickFormatter: v => v.toFixed(1) + '%',
+    tooltipFormatter: (ctx) => {
+      const p = ctx.raw;
+      return p.label ? `${p.label}: ${p.y.toFixed(2)}%` : `${p.y.toFixed(2)}%`;
     }
   });
+  // ONs chart previously hid the legend
+  options.plugins.legend.display = false;
+
+  onsChart = new Chart(canvas, { type: 'scatter', data: { datasets }, options });
 }
+registerChartRerender(() => { if (_onsItems) renderONsYieldCurve(_onsItems); });
 
 function openONCalculator(item) {
   document.querySelector('.mundo-modal-overlay')?.remove();
@@ -3974,885 +3717,8 @@ function openLecapCalculator(item) {
   recalcLecap();
 }
 
-// ─── PORTFOLIO MODULE ───
-
-const MONTH_NAMES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
-
-const _icon = (d, size = 16) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`;
-const ASSET_TYPES = {
-  soberano: { label: 'Soberanos', emoji: _icon('<path d="M3 21h18M3 10h18M5 6l7-3 7 3M4 10v11M8 10v11M12 10v11M16 10v11M20 10v11"/>'), currency: 'USD', qtyLabel: 'Valor Nominal (VN)' },
-  on: { label: 'ONs', emoji: _icon('<rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><line x1="9" y1="6" x2="9" y2="6.01"/><line x1="15" y1="6" x2="15" y2="6.01"/><line x1="9" y1="10" x2="9" y2="10.01"/><line x1="15" y1="10" x2="15" y2="10.01"/><line x1="9" y1="14" x2="15" y2="14"/>'), currency: 'USD', qtyLabel: 'Valor Nominal (VN)' },
-  cer: { label: 'Bonos CER', emoji: _icon('<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>'), currency: 'ARS', qtyLabel: 'Valor Nominal (VN)' },
-  lecap: { label: 'LECAPs', emoji: _icon('<polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>'), currency: 'ARS', qtyLabel: 'Valor Nominal (VN)' },
-  fci: { label: 'FCIs', emoji: _icon('<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>'), currency: 'ARS', qtyLabel: 'Cuotapartes' },
-  garantizado: { label: 'Billeteras', emoji: _icon('<rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 10h20"/><path d="M6 14h.01"/><path d="M10 14h.01"/>'), currency: 'ARS', qtyLabel: 'Monto (ARS)' },
-  cash: { label: 'Cash', emoji: _icon('<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>'), currency: 'USD', qtyLabel: 'Monto' },
-  custom: { label: 'Otro', emoji: _icon('<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>'), currency: 'USD', qtyLabel: 'Cantidad' },
-};
-
-// ─── PPP & Operations helpers ───
-function getOperationsFromHolding(holding) {
-  if (Array.isArray(holding.metadata?.operations) && holding.metadata.operations.length > 0) {
-    return holding.metadata.operations;
-  }
-  // Backwards compat: synthesize single buy from existing data
-  return [{
-    type: 'buy',
-    qty: parseFloat(holding.quantity) || 0,
-    price: parseFloat(holding.purchase_price) || 0,
-    date: holding.purchase_date || new Date().toISOString().slice(0, 10)
-  }];
-}
-
-function computePosition(operations) {
-  let totalBuyQty = 0, totalBuyCost = 0, totalSellQty = 0;
-  for (const op of operations) {
-    const qty = parseFloat(op.qty) || 0;
-    const price = parseFloat(op.price) || 0;
-    if (op.type === 'buy') {
-      totalBuyQty += qty;
-      totalBuyCost += qty * price;
-    } else if (op.type === 'sell') {
-      totalSellQty += qty;
-    }
-  }
-  const netQty = totalBuyQty - totalSellQty;
-  const ppp = totalBuyQty > 0 ? totalBuyCost / totalBuyQty : 0;
-  return { ppp, netQty };
-}
-
-async function addOperationToHolding(holdingId, operation) {
-  const holding = _portfolioHoldings.find(h => h.id === holdingId);
-  if (!holding) return { error: 'Holding no encontrado' };
-
-  const ops = getOperationsFromHolding(holding);
-  if (operation.type === 'sell') {
-    const { netQty } = computePosition(ops);
-    if (operation.qty > netQty) return { error: `No podes vender más de ${netQty}` };
-  }
-  ops.push(operation);
-  const { ppp, netQty } = computePosition(ops);
-
-  const newMeta = { ...(holding.metadata || {}), operations: ops };
-  const { error } = await supabaseClient.from('holdings').update({
-    quantity: netQty,
-    purchase_price: ppp,
-    metadata: newMeta,
-  }).eq('id', holdingId);
-
-  if (error) return { error: error.message };
-  return { ok: true };
-}
-
-let _portfolioHoldings = [];
-let _portfolioPrices = {};
-let _portfolioLoading = false;
-let _portfolioTC = null; // tipo de cambio implícito (AL30 ARS / AL30D USD)
-let _portfolioViewCurrency = 'split'; // 'split' | 'usd' | 'ars'
-
-async function getPortfolioConfig() {
-  if (_portfolioConfig) return _portfolioConfig;
-  const resp = await fetch('/api/config');
-  _portfolioConfig = await resp.json();
-  return _portfolioConfig;
-}
-
-function getTickersForType(config, type) {
-  switch (type) {
-    case 'soberano': return Object.keys(config.soberanos || {});
-    case 'on': return Object.keys(config.ons || {});
-    case 'cer': return Object.keys(config.bonos_cer || {});
-    case 'lecap': return (config.lecaps?.letras || []).filter(l => l.activo).map(l => l.ticker);
-    case 'fci': return (config.fcis || []).filter(f => f.activo).map(f => f.nombre);
-    case 'garantizado': return [...(config.garantizados || []), ...(config.especiales || [])].filter(g => g.activo).map(g => g.nombre);
-    case 'cash': return ['USD', 'ARS'];
-    case 'custom': return [];
-    default: return [];
-  }
-}
-
-async function loadPortfolio() {
-  if (!supabaseClient || !currentUser || _portfolioLoading) return;
-  _portfolioLoading = true;
-
-  const holdingsEl = document.getElementById('portfolio-holdings');
-  holdingsEl.innerHTML = '<div class="loading"><div class="loading-spinner"></div></div>';
-
-  try {
-    const { data, error } = await supabaseClient.from('holdings').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    _portfolioHoldings = data || [];
-
-    const config = await getPortfolioConfig();
-    const [prices, tc] = await Promise.all([
-      fetchPortfolioPrices(_portfolioHoldings, config),
-      fetchTipoCambio(),
-    ]);
-    _portfolioPrices = prices;
-    _portfolioTC = tc;
-
-    renderPortfolioGreeting();
-    renderPortfolioTCToggle(config);
-    renderPortfolioSummary(config);
-    renderPortfolioHoldings(config);
-    renderPortfolioCashflows(config);
-  } catch (e) {
-    holdingsEl.innerHTML = `<p style="color:var(--red);font-size:0.85rem">Error cargando portfolio: ${e.message}</p>`;
-  }
-  _portfolioLoading = false;
-}
-
-async function fetchPortfolioPrices(holdings, config) {
-  const needs = new Set(holdings.map(h => h.asset_type));
-  const prices = {};
-  const fetches = [];
-
-  if (needs.has('soberano')) {
-    fetches.push(fetch('/api/soberanos').then(r => r.json()).then(d => {
-      for (const b of (d.data || [])) prices['soberano:' + b.symbol] = { price: parseFloat(b.c || b.price_usd || 0), currency: 'USD' };
-    }).catch(() => {}));
-  }
-  if (needs.has('on')) {
-    fetches.push(fetch('/api/ons').then(r => r.json()).then(d => {
-      for (const b of (d.data || [])) {
-        prices['on:' + b.symbol] = { price: parseFloat(b.c || 0), currency: 'USD' };
-        // Also store without D suffix so holdings match (MGCRD → MGCR)
-        const noD = b.symbol.endsWith('D') ? b.symbol.slice(0, -1) : b.symbol;
-        prices['on:' + noD] = { price: parseFloat(b.c || 0), currency: 'USD' };
-      }
-    }).catch(() => {}));
-  }
-  if (needs.has('lecap')) {
-    fetches.push(fetch('/api/lecaps').then(r => r.json()).then(d => {
-      for (const item of (d.data || [])) prices['lecap:' + item.symbol] = { price: parseFloat(item.c || item.price || 0), currency: 'ARS' };
-    }).catch(() => {}));
-  }
-  if (needs.has('cer')) {
-    fetches.push(fetch('/api/cer-precios').then(r => r.json()).then(d => {
-      for (const b of (d.data || [])) prices['cer:' + b.symbol] = { price: parseFloat(b.c || 0), currency: 'ARS' };
-    }).catch(() => {}));
-  }
-  // FCIs and garantizados: use config TNA (no market price per se)
-  if (needs.has('garantizado')) {
-    const all = [...(config.garantizados || []), ...(config.especiales || [])];
-    for (const g of all) prices['garantizado:' + g.nombre] = { tna: g.tna, currency: 'ARS' };
-  }
-
-  await Promise.all(fetches);
-  return prices;
-}
-
-async function fetchTipoCambio() {
-  try {
-    // Fetch all bonds from data912 via cer-precios (which hits arg_bonds) - it has both ARS and USD tickers
-    const resp = await fetch('https://data912.com/live/arg_bonds');
-    const raw = await resp.json();
-    const bonds = Array.isArray(raw) ? raw : [];
-    const al30ars = bonds.find(b => b.symbol === 'AL30');
-    const al30usd = bonds.find(b => b.symbol === 'AL30D');
-    if (al30ars && al30usd) {
-      const arsPrice = parseFloat(al30ars.c || 0);
-      const usdPrice = parseFloat(al30usd.c || 0);
-      if (usdPrice > 0 && arsPrice > 0) return arsPrice / usdPrice;
-    }
-  } catch (e) { /* ignore */ }
-  return null;
-}
-
-function renderPortfolioGreeting() {
-  const el = document.getElementById('portfolio-greeting');
-  if (!el || !currentUser) return;
-  const name = (currentUser.user_metadata?.full_name || currentUser.email || '').split(' ')[0];
-  const hour = new Date().getHours();
-  let saludo = 'Buenas noches';
-  if (hour >= 6 && hour < 12) saludo = 'Buenos días';
-  else if (hour >= 12 && hour < 19) saludo = 'Buenas tardes';
-  el.innerHTML = `
-    <h2 style="font-size:1.6rem;margin:0">${saludo}, ${name}</h2>
-    <p style="color:var(--text-tertiary);font-size:0.82rem;margin-top:4px">Gracias por usar rendimientos.co — hecho con mucho <svg style="display:inline-block;vertical-align:middle" width="12" height="12" viewBox="0 0 24 24" fill="var(--red, #e74c3c)" stroke="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg> desde Argentina.</p>`;
-}
-
-function renderPortfolioTCToggle(config) {
-  const el = document.getElementById('portfolio-tc-toggle');
-  if (!el) return;
-  const tcStr = _portfolioTC ? `TC: $${_portfolioTC.toLocaleString('es-AR', {maximumFractionDigits:0})}` : '';
-  el.innerHTML = `
-    <button class="portfolio-tc-btn ${_portfolioViewCurrency === 'split' ? 'active' : ''}" data-vc="split">USD + ARS</button>
-    <button class="portfolio-tc-btn ${_portfolioViewCurrency === 'usd' ? 'active' : ''}" data-vc="usd">Todo USD</button>
-    <button class="portfolio-tc-btn ${_portfolioViewCurrency === 'ars' ? 'active' : ''}" data-vc="ars">Todo ARS</button>
-    ${tcStr ? `<span style="font-size:0.65rem;color:var(--text-tertiary);padding:4px 8px">${tcStr}</span>` : ''}`;
-  el.querySelectorAll('.portfolio-tc-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _portfolioViewCurrency = btn.dataset.vc;
-      renderPortfolioTCToggle(config);
-      renderPortfolioSummary(config);
-      renderPortfolioHoldings(config);
-    });
-  });
-}
-
-function getHoldingValue(holding, config) {
-  const key = holding.asset_type + ':' + holding.ticker;
-  const priceData = _portfolioPrices[key];
-  const qty = parseFloat(holding.quantity) || 0;
-  const purchasePrice = parseFloat(holding.purchase_price) || 0;
-
-  if (holding.asset_type === 'cash') {
-    const curr = holding.ticker === 'USD' ? 'USD' : 'ARS';
-    return { currentPrice: null, value: qty, pnl: 0, currency: curr };
-  }
-  if (holding.asset_type === 'custom') {
-    const curr = (holding.metadata?.currency) || 'USD';
-    const manualPrice = parseFloat(holding.metadata?.current_price) || purchasePrice;
-    const value = qty * manualPrice;
-    const cost = qty * purchasePrice;
-    return { currentPrice: manualPrice, value, cost, pnl: value - cost, currency: curr };
-  }
-  if (holding.asset_type === 'garantizado') {
-    return { currentPrice: null, value: qty, pnl: 0, currency: 'ARS', tna: priceData?.tna };
-  }
-  if (holding.asset_type === 'fci') {
-    // FCIs: qty = cuotapartes, price = NAV per cuotaparte
-    // We don't have live NAV per holding easily, just show purchase value
-    return { currentPrice: null, value: qty * purchasePrice, pnl: 0, currency: 'ARS' };
-  }
-
-  const currentPrice = priceData?.price || 0;
-  const currency = priceData?.currency || ASSET_TYPES[holding.asset_type]?.currency || 'USD';
-
-  // No live price available
-  if (!currentPrice) {
-    const cost = (purchasePrice / 100) * qty;
-    return { currentPrice: null, value: cost, cost, pnl: null, currency, noPrice: true };
-  }
-
-  // For bonds: qty = VN, price is per 100 VN
-  const value = (currentPrice / 100) * qty;
-  const cost = (purchasePrice / 100) * qty;
-
-  return { currentPrice, value, cost, pnl: value - cost, currency };
-}
-
-function fmtMoney(amount, currency) {
-  const sym = currency === 'USD' ? 'US$' : '$';
-  if (Math.abs(amount) >= 1e9) return sym + (amount / 1e9).toLocaleString('es-AR', {minimumFractionDigits:1, maximumFractionDigits:1}) + 'B';
-  if (Math.abs(amount) >= 1e6) return sym + (amount / 1e6).toLocaleString('es-AR', {minimumFractionDigits:1, maximumFractionDigits:1}) + 'M';
-  return sym + amount.toLocaleString('es-AR', {minimumFractionDigits:0, maximumFractionDigits:0});
-}
-
-function renderPortfolioSummary(config) {
-  const summary = document.getElementById('portfolio-summary');
-  if (_portfolioHoldings.length === 0) {
-    summary.innerHTML = '';
-    return;
-  }
-
-  let totalUSD = 0, totalARS = 0, pnlUSD = 0, pnlARS = 0;
-  for (const h of _portfolioHoldings) {
-    const v = getHoldingValue(h, config);
-    if (v.noPrice) continue; // skip holdings without live price
-    if (v.currency === 'USD') { totalUSD += v.value; pnlUSD += v.pnl || 0; }
-    else { totalARS += v.value; pnlARS += v.pnl || 0; }
-  }
-
-  const tc = _portfolioTC || 0;
-  const vc = _portfolioViewCurrency;
-  let cards = '';
-
-  if (vc === 'split') {
-    cards = `
-      <div class="portfolio-summary-card"><div class="label">Valor USD</div><div class="value">${fmtMoney(totalUSD, 'USD')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">Valor ARS</div><div class="value">${fmtMoney(totalARS, 'ARS')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">P&L USD</div><div class="value" style="color:${pnlUSD >= 0 ? 'var(--green)' : 'var(--red)'}">${pnlUSD >= 0 ? '+' : ''}${fmtMoney(pnlUSD, 'USD')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">P&L ARS</div><div class="value" style="color:${pnlARS >= 0 ? 'var(--green)' : 'var(--red)'}">${pnlARS >= 0 ? '+' : ''}${fmtMoney(pnlARS, 'ARS')}</div></div>`;
-  } else if (vc === 'usd' && tc) {
-    const total = totalUSD + totalARS / tc;
-    const pnl = pnlUSD + pnlARS / tc;
-    cards = `
-      <div class="portfolio-summary-card"><div class="label">Valor Total</div><div class="value">${fmtMoney(total, 'USD')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">P&L Total</div><div class="value" style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}${fmtMoney(pnl, 'USD')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">USD</div><div class="value">${fmtMoney(totalUSD, 'USD')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">ARS → USD</div><div class="value">${fmtMoney(totalARS / tc, 'USD')}</div></div>`;
-  } else if (vc === 'ars' && tc) {
-    const total = totalARS + totalUSD * tc;
-    const pnl = pnlARS + pnlUSD * tc;
-    cards = `
-      <div class="portfolio-summary-card"><div class="label">Valor Total</div><div class="value">${fmtMoney(total, 'ARS')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">P&L Total</div><div class="value" style="color:${pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${pnl >= 0 ? '+' : ''}${fmtMoney(pnl, 'ARS')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">ARS</div><div class="value">${fmtMoney(totalARS, 'ARS')}</div></div>
-      <div class="portfolio-summary-card"><div class="label">USD → ARS</div><div class="value">${fmtMoney(totalUSD * tc, 'ARS')}</div></div>`;
-  } // else: split cards already set above
-
-  // Big total number
-  let totalHTML = '';
-  if (tc) {
-    const totalEnUSD = totalUSD + totalARS / tc;
-    const totalEnARS = totalARS + totalUSD * tc;
-    const pnlEnUSD = pnlUSD + pnlARS / tc;
-    const pnlEnARS = pnlARS + pnlUSD * tc;
-    const showARS = vc === 'ars';
-    const grandTotal = showARS ? totalEnARS : totalEnUSD;
-    const grandPnl = showARS ? pnlEnARS : pnlEnUSD;
-    const grandCurr = showARS ? 'ARS' : 'USD';
-    const pnlTotalColor = grandPnl >= 0 ? 'var(--green)' : 'var(--red)';
-    totalHTML = `
-      <div style="margin-bottom:16px">
-        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-tertiary);font-weight:600">Valor total del portfolio</div>
-        <div style="font-size:2.4rem;font-weight:800;color:var(--text);line-height:1.2">${fmtMoney(grandTotal, grandCurr)}</div>
-        <div style="font-size:1rem;font-weight:600;color:${pnlTotalColor}">${grandPnl >= 0 ? '+' : ''}${fmtMoney(grandPnl, grandCurr)} P&L</div>
-      </div>`;
-  }
-
-  summary.innerHTML = `${totalHTML}<div class="portfolio-summary-grid">${cards}</div>`;
-}
-
-function renderPortfolioHoldings(config) {
-  const container = document.getElementById('portfolio-holdings');
-  if (_portfolioHoldings.length === 0) {
-    container.innerHTML = `
-      <div class="portfolio-empty">
-        <div class="emoji"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--text-tertiary)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8V21H3V8"/><path d="M23 3H1v5h22V3z"/><path d="M10 12h4"/></svg></div>
-        <p>No tenés activos en tu portfolio.</p>
-        <p style="margin-top:8px;font-size:0.8rem">Hacé click en <strong>+ Agregar activo</strong> para empezar.</p>
-      </div>`;
-    return;
-  }
-
-  const rows = _portfolioHoldings.map(h => {
-    const typeInfo = ASSET_TYPES[h.asset_type] || {};
-    const v = getHoldingValue(h, config);
-    const pnlColor = v.pnl != null && v.pnl >= 0 ? 'var(--green)' : v.pnl != null ? 'var(--red)' : 'var(--text-tertiary)';
-    const currSymbol = v.currency === 'USD' ? 'US$' : '$';
-    const priceStr = v.currentPrice != null ? `${currSymbol}${v.currentPrice.toFixed(2)}` : '<span style="color:var(--text-tertiary)">Sin precio</span>';
-    const valueStr = v.noPrice ? '—' : fmtMoney(v.value, v.currency);
-    const pnlStr = v.pnl != null ? `${v.pnl >= 0 ? '+' : ''}${fmtMoney(v.pnl, v.currency)}` : '—';
-    const qty = parseFloat(h.quantity);
-    const qtyStr = h.asset_type === 'garantizado' ? `$${qty.toLocaleString('es-AR')}` : qty.toLocaleString('es-AR');
-    const ops = getOperationsFromHolding(h);
-    const opsCount = ops.length;
-    const opsBadge = opsCount > 1 ? `<span class="ops-badge">${opsCount} ops</span>` : '';
-
-    return `<tr>
-      <td><strong>${h.ticker}</strong>${opsBadge}<br><span style="font-size:0.7rem;color:var(--text-tertiary)">${typeInfo.label || h.asset_type}</span></td>
-      <td>${qtyStr}</td>
-      <td>${currSymbol}${parseFloat(h.purchase_price).toFixed(2)}</td>
-      <td>${priceStr}</td>
-      <td style="color:${pnlColor};font-weight:600">${pnlStr}</td>
-      <td style="font-weight:700">${valueStr}</td>
-      <td class="col-actions">
-        <button onclick="openOperationsModal('${h.id}')" title="Operaciones"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>
-        <button onclick="deleteHolding('${h.id}')" title="Eliminar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
-      </td>
-    </tr>`;
-  }).join('');
-
-  container.innerHTML = `
-    <table class="portfolio-table">
-      <thead><tr>
-        <th>Activo</th><th>Cantidad</th><th>PPP</th><th>P.Actual</th><th>P&L</th><th>Valor</th><th></th>
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table>`;
-  makeSortable(container.querySelector('.portfolio-table'));
-}
-
-// ─── Add/Edit Holding Modal ───
-
-function openAddHoldingModal(editId) {
-  const isEdit = typeof editId === 'string' && editId.length > 10;
-  const existing = isEdit ? _portfolioHoldings.find(h => h.id === editId) : null;
-
-  document.querySelector('.mundo-modal-overlay')?.remove();
-  const overlay = document.createElement('div');
-  overlay.className = 'mundo-modal-overlay';
-  overlay.innerHTML = `
-    <div class="mundo-modal" style="max-width:420px">
-      <div class="mundo-modal-header">
-        <h3 style="margin:0">${isEdit ? 'Editar' : 'Agregar'} activo</h3>
-        <button class="mundo-modal-close">&times;</button>
-      </div>
-      <div class="mundo-modal-body" style="padding:16px">
-        <div id="modal-step1">
-          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:12px">Tipo de activo</p>
-          <div class="portfolio-type-grid">
-            ${Object.entries(ASSET_TYPES).map(([key, t]) => `
-              <button class="portfolio-type-btn ${existing?.asset_type === key ? 'selected' : ''}" data-type="${key}">
-                <span class="emoji">${t.emoji}</span>${t.label}
-              </button>`).join('')}
-          </div>
-        </div>
-        <div id="modal-step2" style="display:none">
-          <p style="font-size:0.85rem;color:var(--text-secondary);margin-bottom:8px">Elegí el activo</p>
-          <select id="modal-ticker" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;font-family:var(--font);background:var(--card-bg);color:var(--text)"></select>
-          <div style="margin-top:16px;display:flex;flex-direction:column;gap:12px">
-            <div>
-              <label style="font-size:0.8rem;color:var(--text-secondary)" id="modal-qty-label">Cantidad</label>
-              <input type="number" id="modal-qty" value="${existing ? existing.quantity : ''}" step="any" style="display:block;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.95rem;font-weight:600;font-family:var(--font);background:var(--bg);color:var(--text)">
-            </div>
-            <div>
-              <label style="font-size:0.8rem;color:var(--text-secondary)">Precio de compra <span id="modal-price-hint" style="color:var(--text-tertiary)">(por 100 VN)</span></label>
-              <input type="number" id="modal-price" value="${existing ? existing.purchase_price : ''}" step="any" placeholder="Ej: 62.50" style="display:block;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.95rem;font-weight:600;font-family:var(--font);background:var(--bg);color:var(--text)">
-              <p id="modal-price-example" style="font-size:0.7rem;color:var(--text-tertiary);margin-top:4px">Precio en la moneda del activo, por cada 100 VN. Ej: AL30 a US$62.50</p>
-            </div>
-            <div>
-              <label style="font-size:0.8rem;color:var(--text-secondary)">Fecha de compra</label>
-              <input type="date" id="modal-date" value="${existing ? existing.purchase_date : new Date().toISOString().slice(0,10)}" style="display:block;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;font-family:var(--font);background:var(--bg);color:var(--text)">
-            </div>
-          </div>
-          <button id="modal-save" style="margin-top:16px;width:100%;padding:10px;background:var(--accent);color:#fff;border:none;border-radius:6px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:var(--font)">
-            ${isEdit ? 'Guardar cambios' : 'Agregar al portfolio'}
-          </button>
-          <p id="modal-error" style="color:var(--red);font-size:0.8rem;margin-top:8px;display:none"></p>
-        </div>
-      </div>
-    </div>`;
-
-  document.body.appendChild(overlay);
-  overlay.querySelector('.mundo-modal-close').addEventListener('click', () => overlay.remove());
-  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
-
-  let selectedType = existing?.asset_type || null;
-
-  async function showStep2(type) {
-    selectedType = type;
-    overlay.querySelectorAll('.portfolio-type-btn').forEach(b => b.classList.toggle('selected', b.dataset.type === type));
-    const config = await getPortfolioConfig();
-    const tickers = getTickersForType(config, type);
-    const select = overlay.querySelector('#modal-ticker');
-    const step2 = overlay.querySelector('#modal-step2');
-
-    // Remove custom fields if they exist
-    overlay.querySelector('#modal-custom-fields')?.remove();
-
-    if (type === 'cash') {
-      select.innerHTML = '<option value="USD">Dólares (USD)</option><option value="ARS">Pesos (ARS)</option>';
-      if (existing) select.value = existing.ticker;
-      overlay.querySelector('#modal-qty-label').textContent = 'Monto';
-      overlay.querySelector('#modal-price-hint').textContent = '(no aplica)';
-      overlay.querySelector('#modal-price-example').textContent = 'Para cash poné 1 como precio';
-      overlay.querySelector('#modal-price').placeholder = '1';
-      overlay.querySelector('#modal-price').value = existing ? existing.purchase_price : '1';
-    } else if (type === 'custom') {
-      select.innerHTML = '<option value="">Escribí el nombre abajo</option>';
-      // Add custom fields: name, currency, current price
-      const customHTML = `<div id="modal-custom-fields" style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
-        <div><label style="font-size:0.8rem;color:var(--text-secondary)">Nombre del activo</label>
-          <input type="text" id="modal-custom-name" value="${existing?.ticker || ''}" placeholder="Ej: Bitcoin, AAPL, Ethereum" style="display:block;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.95rem;font-weight:600;font-family:var(--font);background:var(--bg);color:var(--text)"></div>
-        <div><label style="font-size:0.8rem;color:var(--text-secondary)">Moneda</label>
-          <select id="modal-custom-currency" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.85rem;font-family:var(--font);background:var(--card-bg);color:var(--text)">
-            <option value="USD" ${existing?.metadata?.currency === 'USD' || !existing ? 'selected' : ''}>USD</option>
-            <option value="ARS" ${existing?.metadata?.currency === 'ARS' ? 'selected' : ''}>ARS</option>
-          </select></div>
-        <div><label style="font-size:0.8rem;color:var(--text-secondary)">Precio actual (opcional, para calcular P&L)</label>
-          <input type="number" id="modal-custom-current-price" value="${existing?.metadata?.current_price || ''}" placeholder="Ej: 70000" step="any" style="display:block;width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:6px;font-size:0.95rem;font-weight:600;font-family:var(--font);background:var(--bg);color:var(--text)"></div>
-      </div>`;
-      select.style.display = 'none';
-      select.insertAdjacentHTML('afterend', customHTML);
-      overlay.querySelector('#modal-qty-label').textContent = 'Cantidad';
-      overlay.querySelector('#modal-price-hint').textContent = '(precio de compra por unidad)';
-      overlay.querySelector('#modal-price-example').textContent = 'Precio al que compraste cada unidad';
-      overlay.querySelector('#modal-price').placeholder = 'Ej: 65000';
-    } else {
-      select.style.display = '';
-      select.innerHTML = tickers.map(t => `<option value="${t}" ${existing?.ticker === t ? 'selected' : ''}>${t}</option>`).join('');
-      overlay.querySelector('#modal-qty-label').textContent = ASSET_TYPES[type]?.qtyLabel || 'Cantidad';
-      const priceHints = {
-        soberano: { hint: '(USD por 100 VN)', example: 'Precio en USD por cada 100 VN. Ej: AL30 a US$62.50', placeholder: 'Ej: 62.50' },
-        on: { hint: '(USD por 100 VN)', example: 'Precio en USD por cada 100 VN. Ej: BACG a US$102.50', placeholder: 'Ej: 102.50' },
-        cer: { hint: '(ARS por 100 VN)', example: 'Precio en ARS por cada 100 VN. Ej: TX26 a $110.25', placeholder: 'Ej: 110.25' },
-        lecap: { hint: '(ARS por 100 VN)', example: 'Precio en ARS por cada 100 VN. Ej: S17A6 a $108.40', placeholder: 'Ej: 108.40' },
-        fci: { hint: '(por cuotaparte)', example: 'Valor de la cuotaparte al momento de compra', placeholder: 'Ej: 5250.00' },
-        garantizado: { hint: '(no aplica)', example: 'Para billeteras no se usa precio de compra, poné 1', placeholder: '1' },
-      };
-      const ph = priceHints[type] || {};
-      overlay.querySelector('#modal-price-hint').textContent = ph.hint || '';
-      overlay.querySelector('#modal-price-example').textContent = ph.example || '';
-      overlay.querySelector('#modal-price').placeholder = ph.placeholder || '';
-    }
-    step2.style.display = '';
-  }
-
-  overlay.querySelectorAll('.portfolio-type-btn').forEach(btn => {
-    btn.addEventListener('click', () => showStep2(btn.dataset.type));
-  });
-
-  if (existing) showStep2(existing.asset_type);
-
-  overlay.querySelector('#modal-save').addEventListener('click', async () => {
-    let ticker = overlay.querySelector('#modal-ticker').value;
-    const qty = parseFloat(overlay.querySelector('#modal-qty').value);
-    const price = parseFloat(overlay.querySelector('#modal-price').value);
-    const date = overlay.querySelector('#modal-date').value;
-    const errorEl = overlay.querySelector('#modal-error');
-
-    let metadata = {};
-    if (selectedType === 'custom') {
-      ticker = overlay.querySelector('#modal-custom-name')?.value?.trim() || '';
-      const curr = overlay.querySelector('#modal-custom-currency')?.value || 'USD';
-      const curPrice = parseFloat(overlay.querySelector('#modal-custom-current-price')?.value) || 0;
-      metadata = { currency: curr, current_price: curPrice || null };
-    }
-
-    if (!selectedType || !ticker || !qty || !date) {
-      errorEl.textContent = 'Completá todos los campos';
-      errorEl.style.display = '';
-      return;
-    }
-    if (selectedType !== 'cash' && !price) {
-      errorEl.textContent = 'Completá el precio de compra';
-      errorEl.style.display = '';
-      return;
-    }
-
-    // ─── Input validation (defense in depth) ───
-    const VALID_TYPES = ['soberano', 'on', 'cer', 'lecap', 'fci', 'garantizado', 'cash', 'custom'];
-    if (!VALID_TYPES.includes(selectedType)) {
-      errorEl.textContent = 'Tipo de activo inválido';
-      errorEl.style.display = '';
-      return;
-    }
-    if (ticker.length > 50) {
-      errorEl.textContent = 'Ticker demasiado largo';
-      errorEl.style.display = '';
-      return;
-    }
-    if (qty <= 0 || qty > 1e12) {
-      errorEl.textContent = 'Cantidad inválida';
-      errorEl.style.display = '';
-      return;
-    }
-    if (price < 0 || price > 1e12) {
-      errorEl.textContent = 'Precio inválido';
-      errorEl.style.display = '';
-      return;
-    }
-    const dateObj = new Date(date);
-    if (isNaN(dateObj.getTime()) || dateObj < new Date('2000-01-01') || dateObj > new Date('2100-01-01')) {
-      errorEl.textContent = 'Fecha inválida';
-      errorEl.style.display = '';
-      return;
-    }
-    if (JSON.stringify(metadata).length > 5000) {
-      errorEl.textContent = 'Metadata demasiado grande';
-      errorEl.style.display = '';
-      return;
-    }
-
-    // Store initial buy operation in metadata for PPP tracking
-    const initialOp = { type: 'buy', qty, price: price || 1, date };
-    metadata.operations = [initialOp];
-
-    const record = {
-      user_id: currentUser.id,
-      asset_type: selectedType,
-      ticker,
-      quantity: qty,
-      purchase_price: price || 1,
-      purchase_date: date,
-      metadata,
-    };
-
-    try {
-      if (isEdit) {
-        const { error } = await supabaseClient.from('holdings').update(record).eq('id', editId);
-        if (error) throw error;
-      } else {
-        const { error } = await supabaseClient.from('holdings').insert(record);
-        if (error) throw error;
-      }
-      overlay.remove();
-      loadPortfolio();
-    } catch (e) {
-      errorEl.textContent = 'Error: ' + e.message;
-      errorEl.style.display = '';
-    }
-  });
-}
-
-function editHolding(id) {
-  openOperationsModal(id);
-}
-
-function openOperationsModal(holdingId) {
-  const holding = _portfolioHoldings.find(h => h.id === holdingId);
-  if (!holding) return;
-
-  const ops = getOperationsFromHolding(holding);
-  const { ppp, netQty } = computePosition(ops);
-  const typeInfo = ASSET_TYPES[holding.asset_type] || {};
-  const curr = typeInfo.currency === 'USD' ? 'US$' : '$';
-  const isBond = ['soberano', 'on', 'cer', 'lecap'].includes(holding.asset_type);
-  const priceLabel = isBond ? 'por 100 VN' : 'por unidad';
-
-  const opsRows = ops.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '')).map(op => {
-    const isBuy = op.type === 'buy';
-    const typeClass = isBuy ? 'ops-buy' : 'ops-sell';
-    const typeText = isBuy ? 'Compra' : 'Venta';
-    return `<tr class="${typeClass}">
-      <td>${op.date || '—'}</td>
-      <td>${typeText}</td>
-      <td>${parseFloat(op.qty).toLocaleString('es-AR')}</td>
-      <td>${curr}${parseFloat(op.price).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-    </tr>`;
-  }).join('');
-
-  const overlay = document.createElement('div');
-  overlay.className = 'mundo-modal-overlay';
-  overlay.innerHTML = `
-    <div class="mundo-modal ops-modal">
-      <button class="mundo-modal-close" id="ops-close">&times;</button>
-      <h3 style="margin:0 0 12px;font-size:1.1rem;font-weight:700;color:var(--text)">${holding.ticker} <span style="font-weight:400;color:var(--text-secondary);font-size:0.85rem">${typeInfo.label || ''}</span></h3>
-
-      <div class="ops-summary">
-        <div class="ops-summary-item"><span class="ops-label">Posición</span><span class="ops-value">${netQty.toLocaleString('es-AR')} ${isBond ? 'VN' : typeInfo.qtyLabel || ''}</span></div>
-        <div class="ops-summary-item"><span class="ops-label">PPP</span><span class="ops-value">${curr}${ppp.toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span></div>
-        <div class="ops-summary-item"><span class="ops-label">Operaciones</span><span class="ops-value">${ops.length}</span></div>
-      </div>
-
-      ${ops.length > 0 ? `
-      <table class="ops-table">
-        <thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Precio</th></tr></thead>
-        <tbody>${opsRows}</tbody>
-      </table>` : ''}
-
-      <div class="ops-add-section">
-        <div style="font-size:0.85rem;font-weight:600;color:var(--text);margin-bottom:8px">Agregar operación</div>
-        <div class="ops-type-toggle">
-          <button class="ops-type-btn ops-type-buy active" data-type="buy">Compra</button>
-          <button class="ops-type-btn ops-type-sell" data-type="sell">Venta</button>
-        </div>
-        <div class="ops-form-row">
-          <div class="ops-field">
-            <label>Cantidad</label>
-            <input type="number" id="ops-qty" step="any" min="0" placeholder="${isBond ? 'VN' : 'Cant.'}">
-          </div>
-          <div class="ops-field">
-            <label>Precio <span style="color:var(--text-tertiary);font-size:0.75rem">${priceLabel}</span></label>
-            <input type="number" id="ops-price" step="any" min="0" placeholder="${curr}0.00">
-          </div>
-          <div class="ops-field">
-            <label>Fecha</label>
-            <input type="date" id="ops-date" value="${new Date().toISOString().slice(0, 10)}">
-          </div>
-        </div>
-        <div id="ops-error" style="color:var(--red);font-size:0.8rem;margin-top:4px;display:none"></div>
-        <button id="ops-save" class="portfolio-add-btn" style="width:100%;margin-top:10px;padding:10px">Agregar</button>
-      </div>
-    </div>`;
-  document.body.appendChild(overlay);
-  requestAnimationFrame(() => overlay.classList.add('active'));
-
-  // Type toggle
-  let selectedOpType = 'buy';
-  overlay.querySelectorAll('.ops-type-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      overlay.querySelectorAll('.ops-type-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      selectedOpType = btn.dataset.type;
-    });
-  });
-
-  // Save operation
-  overlay.querySelector('#ops-save').addEventListener('click', async () => {
-    const errorEl = overlay.querySelector('#ops-error');
-    errorEl.style.display = 'none';
-    const qty = parseFloat(overlay.querySelector('#ops-qty').value);
-    const price = parseFloat(overlay.querySelector('#ops-price').value);
-    const date = overlay.querySelector('#ops-date').value;
-
-    if (!qty || qty <= 0) { errorEl.textContent = 'Cantidad debe ser mayor a 0'; errorEl.style.display = ''; return; }
-    if (isNaN(price) || price < 0) { errorEl.textContent = 'Precio inválido'; errorEl.style.display = ''; return; }
-    if (!date) { errorEl.textContent = 'Fecha requerida'; errorEl.style.display = ''; return; }
-
-    const result = await addOperationToHolding(holdingId, { type: selectedOpType, qty, price, date });
-    if (result.error) {
-      errorEl.textContent = result.error;
-      errorEl.style.display = '';
-      return;
-    }
-    overlay.classList.remove('active');
-    setTimeout(() => overlay.remove(), 200);
-    loadPortfolio();
-  });
-
-  // Close
-  const close = () => { overlay.classList.remove('active'); setTimeout(() => overlay.remove(), 200); };
-  overlay.querySelector('#ops-close').addEventListener('click', close);
-  overlay.addEventListener('click', e => { if (e.target === overlay) close(); });
-}
-
-async function deleteHolding(id) {
-  if (!confirm('¿Eliminar este activo del portfolio?')) return;
-  try {
-    await supabaseClient.from('holdings').delete().eq('id', id);
-    loadPortfolio();
-  } catch (e) {
-    alert('Error eliminando: ' + e.message);
-  }
-}
-
-// ─── Cash Flow Calendar ───
-
-async function renderPortfolioCashflows(config) {
-  const container = document.getElementById('portfolio-cashflows');
-  const chartWrapper = document.getElementById('portfolio-cashflow-chart-wrapper');
-  const bondHoldings = _portfolioHoldings.filter(h => ['soberano', 'on', 'cer', 'lecap'].includes(h.asset_type));
-
-  if (bondHoldings.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-tertiary);font-size:0.85rem;padding:16px 0">Agregá bonos a tu portfolio para ver el calendario de cobros.</p>';
-    if (chartWrapper) chartWrapper.style.display = 'none';
-    return;
-  }
-
-  // Fetch CER coefficient if needed
-  let cerActual = 0;
-  const hasCER = bondHoldings.some(h => h.asset_type === 'cer');
-  if (hasCER) {
-    try {
-      const cerResp = await fetch('/api/cer?v=2').then(r => r.json());
-      cerActual = cerResp?.cer || cerResp?.data || 0;
-    } catch (e) { /* ignore */ }
-  }
-
-  const flows = [];
-  const today = new Date();
-
-  for (const holding of bondHoldings) {
-    const qty = parseFloat(holding.quantity) || 0;
-
-    if (holding.asset_type === 'soberano') {
-      const bond = config.soberanos?.[holding.ticker];
-      if (!bond?.flujos) continue;
-      for (const f of bond.flujos) {
-        const fecha = typeof f.fecha === 'string' ? parseLocalDate(f.fecha) : f.fecha;
-        if (fecha <= today) continue;
-        flows.push({ date: fecha, amount: f.monto * (qty / 100), currency: 'USD', ticker: holding.ticker, type: 'soberano' });
-      }
-    }
-
-    if (holding.asset_type === 'on') {
-      const bond = config.ons?.[holding.ticker];
-      if (!bond?.flujos) continue;
-      for (const f of bond.flujos) {
-        const fecha = typeof f.fecha === 'string' ? parseLocalDate(f.fecha) : f.fecha;
-        if (fecha <= today) continue;
-        flows.push({ date: fecha, amount: f.monto * qty, currency: 'USD', ticker: holding.ticker, type: 'on' });
-      }
-    }
-
-    if (holding.asset_type === 'cer' && cerActual) {
-      const bond = config.bonos_cer?.[holding.ticker];
-      if (!bond?.flujos) continue;
-      const coefCER = cerActual / (bond.cer_emision || 1);
-      let amortAcum = 0;
-      for (const f of bond.flujos) {
-        const vrAntes = 1 - amortAcum;
-        amortAcum += (f.amortizacion || 0);
-        const fecha = typeof f.fecha === 'string' ? parseLocalDate(f.fecha) : f.fecha;
-        if (fecha <= today) continue;
-        const flujo = (vrAntes * (f.tasa_interes || 0) * (f.base || 0.5) + (f.amortizacion || 0)) * coefCER;
-        const multiplier = holding.ticker === 'DICP' ? 1.27 : 1;
-        flows.push({ date: fecha, amount: flujo * qty * multiplier, currency: 'ARS', ticker: holding.ticker, type: 'cer' });
-      }
-    }
-
-    if (holding.asset_type === 'lecap') {
-      const lecap = (config.lecaps?.letras || []).find(l => l.ticker === holding.ticker);
-      if (!lecap) continue;
-      const fecha = parseLocalDate(lecap.fecha_vencimiento);
-      if (fecha <= today) continue;
-      flows.push({ date: fecha, amount: lecap.pago_final * (qty / 100), currency: 'ARS', ticker: holding.ticker, type: 'lecap' });
-    }
-  }
-
-  flows.sort((a, b) => a.date - b.date);
-
-  if (flows.length === 0) {
-    container.innerHTML = '<p style="color:var(--text-tertiary);font-size:0.85rem;padding:16px 0">No hay flujos futuros para tus bonos actuales.</p>';
-    if (chartWrapper) chartWrapper.style.display = 'none';
-    return;
-  }
-
-  // Group by month
-  const months = {};
-  for (const f of flows) {
-    const key = f.date.getFullYear() + '-' + String(f.date.getMonth() + 1).padStart(2, '0');
-    if (!months[key]) months[key] = { usd: 0, ars: 0, details: [] };
-    if (f.currency === 'USD') months[key].usd += f.amount;
-    else months[key].ars += f.amount;
-    months[key].details.push(f);
-  }
-
-  const monthNames = MONTH_NAMES;
-  let tableHTML = '';
-  for (const [key, m] of Object.entries(months)) {
-    const [year, mon] = key.split('-');
-    const monthLabel = `${monthNames[parseInt(mon)-1]} ${year}`;
-    const totalUsdStr = m.usd > 0 ? 'US$' + m.usd.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
-    const totalArsStr = m.ars > 0 ? '$' + m.ars.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '';
-    const totalStr = [totalUsdStr, totalArsStr].filter(Boolean).join(' + ');
-    tableHTML += `<tr class="cashflow-month-header"><td colspan="4">${monthLabel} <span style="font-weight:400;font-size:0.75rem;color:var(--text-secondary);margin-left:8px">${totalStr}</span></td></tr>`;
-    // Individual flows sorted by date
-    const sorted = m.details.sort((a, b) => a.date - b.date);
-    for (const d of sorted) {
-      const sym = d.currency === 'USD' ? 'US$' : '$';
-      const dateStr = d.date.toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
-      tableHTML += `<tr>
-        <td style="color:var(--text-secondary)">${dateStr}</td>
-        <td style="text-align:right;font-weight:600">${d.currency === 'USD' ? sym + d.amount.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—'}</td>
-        <td style="text-align:right;font-weight:600">${d.currency === 'ARS' ? sym + d.amount.toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—'}</td>
-        <td style="font-size:0.75rem;color:var(--text-tertiary)">${d.ticker} <span style="opacity:0.6">${d.type}</span></td>
-      </tr>`;
-    }
-  }
-
-  container.innerHTML = `
-    <table class="cashflow-table">
-      <thead><tr><th>Fecha</th><th style="text-align:right">USD</th><th style="text-align:right">ARS</th><th>Activo</th></tr></thead>
-      <tbody>${tableHTML}</tbody>
-    </table>`;
-
-  // Render chart
-  if (chartWrapper) {
-    chartWrapper.style.display = '';
-    renderCashflowChart(months);
-  }
-}
-
-let _cashflowChart = null;
-function renderCashflowChart(months) {
-  const canvas = document.getElementById('portfolio-cashflow-chart');
-  if (!canvas) return;
-  if (_cashflowChart) _cashflowChart.destroy();
-
-  const textColor = '#555555';
-  const gridColor = '#1a1a1a';
-  const monthNames = MONTH_NAMES;
-  const labels = Object.keys(months).map(k => { const [y,m] = k.split('-'); return `${monthNames[parseInt(m)-1]} ${y}`; });
-  const usdData = Object.values(months).map(m => m.usd);
-  const arsData = Object.values(months).map(m => m.ars);
-
-  _cashflowChart = new Chart(canvas, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [
-        { label: 'USD', data: usdData, backgroundColor: '#4da6ff', yAxisID: 'yUSD', borderRadius: 2 },
-        { label: 'ARS', data: arsData, backgroundColor: '#00d26a', yAxisID: 'yARS', borderRadius: 2 },
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { labels: { color: textColor } } },
-      scales: {
-        x: { ticks: { color: textColor }, grid: { color: gridColor } },
-        yUSD: { position: 'left', title: { display: true, text: 'USD', color: textColor }, ticks: { color: textColor }, grid: { color: gridColor } },
-        yARS: { position: 'right', title: { display: true, text: 'ARS', color: textColor }, ticks: { color: textColor }, grid: { display: false } },
-      }
-    }
-  });
-}
+// ─── PORTFOLIO MODULE REMOVED ───
+// (Portfolio code was here, removed)
 
 // ─── Dolar ───
 // Exchange logos — local SVGs + API logoUrl (comparadolar.ar) + ENTITY_LOGOS + initials fallback
@@ -5479,75 +4345,78 @@ async function fetchMundialLiveData(groups) {
     if (!resp.ok) return;
     const data = await resp.json();
 
-    // Map team names from API to our local names
+    // Map openfootball English names → our local Spanish names
     const NAME_MAP = {
-      'Mexico': 'Mexico', 'Korea Republic': 'Corea del Sur', 'South Africa': 'Sudafrica',
+      'Mexico': 'Mexico', 'Korea Republic': 'Corea del Sur', 'South Korea': 'Corea del Sur', 'South Africa': 'Sudafrica',
       'Canada': 'Canada', 'Switzerland': 'Suiza', 'Qatar': 'Qatar',
+      'Bosnia and Herzegovina': 'Bosnia', 'Bosnia & Herzegovina': 'Bosnia',
+      'Czech Republic': 'Playoff UEFA D', 'Czechia': 'Playoff UEFA D',
       'Brazil': 'Brasil', 'Morocco': 'Marruecos', 'Scotland': 'Escocia', 'Haiti': 'Haiti',
-      'United States': 'Estados Unidos', 'Paraguay': 'Paraguay', 'Australia': 'Australia',
+      'United States': 'Estados Unidos', 'USA': 'Estados Unidos', 'Paraguay': 'Paraguay', 'Australia': 'Australia',
+      'Turkey': 'Playoff UEFA C', 'Türkiye': 'Playoff UEFA C',
       'Germany': 'Alemania', 'Ivory Coast': 'Costa de Marfil', "Côte d'Ivoire": 'Costa de Marfil',
       'Ecuador': 'Ecuador', 'Curaçao': 'Curazao', 'Curacao': 'Curazao',
       'Netherlands': 'Paises Bajos', 'Japan': 'Japon', 'Tunisia': 'Tunez',
+      'Sweden': 'Playoff UEFA B', 'Suecia': 'Playoff UEFA B',
       'Belgium': 'Belgica', 'Egypt': 'Egipto', 'Iran': 'Iran', 'New Zealand': 'Nueva Zelanda',
       'Spain': 'Espana', 'Uruguay': 'Uruguay', 'Saudi Arabia': 'Arabia Saudita', 'Cape Verde': 'Cabo Verde',
       'France': 'Francia', 'Senegal': 'Senegal', 'Norway': 'Noruega',
+      'Iraq': 'Interconf. Playoff 2',
       'Argentina': 'Argentina', 'Algeria': 'Argelia', 'Austria': 'Austria', 'Jordan': 'Jordania',
       'Portugal': 'Portugal', 'Colombia': 'Colombia', 'Uzbekistan': 'Uzbekistan',
+      'DR Congo': 'Interconf. Playoff 1',
       'England': 'Inglaterra', 'Croatia': 'Croacia', 'Ghana': 'Ghana', 'Panama': 'Panama',
     };
 
-    // Update standings if available
-    if (data.standings?.standings) {
-      updateMundialStandings(data.standings.standings, NAME_MAP, groups);
+    function localName(apiName) {
+      return NAME_MAP[apiName] || apiName;
     }
 
-    // Update match results if available
-    if (data.matches?.matches) {
-      updateMundialMatches(data.matches.matches, NAME_MAP, groups);
+    // Update standings from API
+    if (data.standings) {
+      updateMundialStandings(data.standings, localName, groups);
+    }
+
+    // Update match scores
+    if (data.matches) {
+      updateMundialMatches(data.matches, localName, groups);
     }
   } catch (e) {
     console.log('Mundial live data not available:', e.message);
   }
 }
 
-function updateMundialStandings(apiStandings, nameMap, groups) {
-  // apiStandings is an array of group standings
-  for (const groupStanding of apiStandings) {
-    const stage = groupStanding.stage;
-    const groupName = groupStanding.group; // e.g. "GROUP_A"
-    if (!groupName) continue;
-    const letter = groupName.replace('GROUP_', '');
-    const table = groupStanding.table;
-    if (!table || !table.length) continue;
+function updateMundialStandings(standings, localName, groups) {
+  // standings is { A: [{team, played, won, draw, lost, points, gf, ga}, ...], B: [...], ... }
+  for (const [letter, table] of Object.entries(standings)) {
+    if (!table.length) continue;
+    // Any team has played? If not, skip update
+    if (!table.some(t => t.played > 0)) continue;
 
-    // Find the group card by letter
     const groupCards = document.querySelectorAll('.mundial-group-card');
     for (const card of groupCards) {
       const headerLetter = card.querySelector('.mundial-group-letter');
       if (!headerLetter || headerLetter.textContent !== letter) continue;
 
       const rows = card.querySelectorAll('.mundial-team-row');
-      // Sort teams by API table order and update
       for (let i = 0; i < table.length && i < rows.length; i++) {
-        const apiTeam = table[i];
+        const t = table[i];
         const row = rows[i];
-        const localName = nameMap[apiTeam.team?.name] || apiTeam.team?.shortName || apiTeam.team?.name;
         const nameEl = row.querySelector('.mundial-team-name');
         const stats = row.querySelectorAll('.mundial-team-stat');
         const posEl = row.querySelector('.mundial-team-pos');
 
-        if (nameEl && localName) nameEl.textContent = localName;
+        if (nameEl) nameEl.textContent = localName(t.team);
         if (posEl) posEl.textContent = i + 1;
         if (stats.length >= 5) {
-          stats[0].textContent = apiTeam.playedGames ?? 0;
-          stats[1].textContent = apiTeam.won ?? 0;
-          stats[2].textContent = apiTeam.draw ?? 0;
-          stats[3].textContent = apiTeam.lost ?? 0;
-          stats[4].textContent = apiTeam.points ?? 0;
+          stats[0].textContent = t.played;
+          stats[1].textContent = t.won;
+          stats[2].textContent = t.draw;
+          stats[3].textContent = t.lost;
+          stats[4].textContent = t.points;
         }
-
-        // Highlight qualified teams (top 2 advance)
-        if (i < 2 && apiTeam.playedGames > 0) {
+        // Highlight top 2 as qualified (top 2 per group + best 3rd places advance)
+        if (i < 2 && t.played > 0) {
           row.classList.add('mundial-qualified');
         } else {
           row.classList.remove('mundial-qualified');
@@ -5558,34 +4427,22 @@ function updateMundialStandings(apiStandings, nameMap, groups) {
   }
 }
 
-function updateMundialMatches(apiMatches, nameMap, groups) {
-  // Update group stage match scores
-  const groupMatches = apiMatches.filter(m => m.stage === 'GROUP_STAGE');
-  const knockoutMatches = apiMatches.filter(m => m.stage !== 'GROUP_STAGE');
+function updateMundialMatches(matches, localName, groups) {
+  // Update group match scores
+  for (const m of (matches.group || [])) {
+    if (m.score1 == null || m.score2 == null) continue;
+    const t1 = localName(m.team1);
+    const t2 = localName(m.team2);
 
-  // Update group match scores in the match list
-  for (const match of groupMatches) {
-    if (match.status === 'SCHEDULED' || match.status === 'TIMED') continue;
-    const homeTeam = nameMap[match.homeTeam?.name] || match.homeTeam?.shortName || '';
-    const awayTeam = nameMap[match.awayTeam?.name] || match.awayTeam?.shortName || '';
-    const homeScore = match.score?.fullTime?.home;
-    const awayScore = match.score?.fullTime?.away;
-    if (homeScore == null || awayScore == null) continue;
-
-    // Find the match row in the DOM
     const matchRows = document.querySelectorAll('.mundial-group-match');
     for (const row of matchRows) {
       const spans = row.querySelectorAll('span');
-      const t1 = spans[1]?.textContent?.trim();
-      const t2 = spans[3]?.textContent?.trim();
-      if ((t1 === homeTeam && t2 === awayTeam) || (t1 === awayTeam && t2 === homeTeam)) {
+      const domT1 = spans[1]?.textContent?.trim();
+      const domT2 = spans[3]?.textContent?.trim();
+      if ((domT1 === t1 && domT2 === t2) || (domT1 === t2 && domT2 === t1)) {
         const vsEl = row.querySelector('.mundial-group-match-vs');
         if (vsEl) {
-          if (t1 === homeTeam) {
-            vsEl.textContent = `${homeScore} - ${awayScore}`;
-          } else {
-            vsEl.textContent = `${awayScore} - ${homeScore}`;
-          }
+          vsEl.textContent = domT1 === t1 ? `${m.score1} - ${m.score2}` : `${m.score2} - ${m.score1}`;
           vsEl.style.fontWeight = '600';
           vsEl.style.fontFamily = 'var(--font-mono)';
           vsEl.style.color = 'var(--text)';
@@ -5596,63 +4453,45 @@ function updateMundialMatches(apiMatches, nameMap, groups) {
   }
 
   // Update knockout bracket
-  if (knockoutMatches.length > 0) {
-    updateMundialBracket(knockoutMatches, nameMap);
-  }
-}
-
-function updateMundialBracket(matches, nameMap) {
   const ROUND_MAP = {
-    'LAST_32': 'Octavos de Final',
-    'ROUND_OF_16': 'Octavos de Final',
-    'LAST_16': 'Octavos de Final',
-    'QUARTER_FINALS': 'Cuartos de Final',
-    'SEMI_FINALS': 'Semifinales',
-    'THIRD_PLACE': 'Tercer Puesto',
-    'FINAL': 'Final',
+    'Round of 32': 'Octavos de Final',
+    'Round of 16': 'Octavos de Final',
+    'Quarter-final': 'Cuartos de Final',
+    'Quarter-finals': 'Cuartos de Final',
+    'Semi-final': 'Semifinales',
+    'Semi-finals': 'Semifinales',
+    'Third place': 'Tercer Puesto',
+    'Third-place match': 'Tercer Puesto',
+    'Final': 'Final',
   };
 
   const bracketEl = document.getElementById('mundial-bracket');
+  if (!bracketEl) return;
   const roundDivs = bracketEl.querySelectorAll('.mundial-bracket-round');
 
-  for (const match of matches) {
-    const roundName = ROUND_MAP[match.stage] || ROUND_MAP[match.group];
+  for (const m of (matches.knockout || [])) {
+    const roundName = ROUND_MAP[m.round];
     if (!roundName) continue;
-    const homeTeam = nameMap[match.homeTeam?.name] || match.homeTeam?.shortName || match.homeTeam?.name;
-    const awayTeam = nameMap[match.awayTeam?.name] || match.awayTeam?.shortName || match.awayTeam?.name;
-    const homeScore = match.score?.fullTime?.home;
-    const awayScore = match.score?.fullTime?.away;
+    // Skip placeholder teams (e.g. "1A", "W73")
+    if (/^[0-9WL]/.test(m.team1) || /^[0-9WL]/.test(m.team2)) continue;
+    const t1 = localName(m.team1);
+    const t2 = localName(m.team2);
 
-    // Find the right round
     for (const roundDiv of roundDivs) {
       const titleEl = roundDiv.querySelector('.mundial-bracket-round-title');
       if (!titleEl || !titleEl.textContent.includes(roundName)) continue;
 
-      // Find an empty match card or matching card
       const cards = roundDiv.querySelectorAll('.mundial-match-card');
       for (const card of cards) {
         const teamEls = card.querySelectorAll('.mundial-match-team');
         if (teamEls.length < 2) continue;
         const t1Text = teamEls[0].querySelector('span')?.textContent;
-        const t2Text = teamEls[1].querySelector('span')?.textContent;
-
-        // Fill empty slots
-        if (t1Text === 'Por definir' || t1Text === homeTeam) {
-          if (homeTeam && homeTeam !== 'null') {
-            teamEls[0].innerHTML = `<span>${homeTeam}</span><span class="mundial-match-score">${homeScore != null ? homeScore : '-'}</span>`;
-          }
-          if (awayTeam && awayTeam !== 'null') {
-            teamEls[1].innerHTML = `<span>${awayTeam}</span><span class="mundial-match-score">${awayScore != null ? awayScore : '-'}</span>`;
-          }
-          // Highlight winner
-          if (homeScore != null && awayScore != null) {
-            if (homeScore > awayScore) {
-              teamEls[0].classList.add('winner');
-              teamEls[1].classList.add('loser');
-            } else if (awayScore > homeScore) {
-              teamEls[1].classList.add('winner');
-              teamEls[0].classList.add('loser');
-            }
+        if (t1Text === 'Por definir' || t1Text === t1) {
+          teamEls[0].innerHTML = `<span>${t1}</span><span class="mundial-match-score">${m.score1 != null ? m.score1 : '-'}</span>`;
+          teamEls[1].innerHTML = `<span>${t2}</span><span class="mundial-match-score">${m.score2 != null ? m.score2 : '-'}</span>`;
+          if (m.score1 != null && m.score2 != null) {
+            if (m.score1 > m.score2) { teamEls[0].classList.add('winner'); teamEls[1].classList.add('loser'); }
+            else if (m.score2 > m.score1) { teamEls[1].classList.add('winner'); teamEls[0].classList.add('loser'); }
           }
           break;
         }

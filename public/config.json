@@ -230,7 +230,7 @@
         "pago_final": 110.125,
         "precio": 108.4,
         "fecha_vencimiento": "2026-04-17",
-        "activo": true
+        "activo": false
       },
       {
         "ticker": "S30A6",
