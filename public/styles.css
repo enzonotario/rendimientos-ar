@@ -853,6 +853,51 @@ body {
   border-color: var(--text);
 }
 
+/* Design switch link — "Probá el diseño nuevo" (opt-in to /nuevo) */
+.design-switch-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.design-switch-link:hover {
+  background: var(--accent-bg, var(--bg-subtle));
+  color: var(--accent);
+  border-color: var(--accent);
+}
+.design-switch-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1F6B4A;
+  display: inline-block;
+  animation: dsDot 2s ease-in-out infinite;
+}
+@keyframes dsDot { 50% { opacity: 0.3; } }
+.design-switch-arrow {
+  opacity: 0.6;
+  transition: transform 0.15s;
+}
+.design-switch-link:hover .design-switch-arrow {
+  transform: translateX(2px);
+  opacity: 1;
+}
+@media (max-width: 768px) {
+  .design-switch-text { display: none; }
+  .design-switch-link { padding: 6px 8px; }
+}
+
 /* Theme Toggle */
 /* Accessibility / Read Aloud Toggle */
 
