@@ -323,6 +323,27 @@
     <!-- Tab: Mundial -->
     <div id="tab-mundial" style="display:none">
       <section class="section" id="mundial-section">
+        <div class="mundial-countdown" id="mundial-countdown" aria-live="polite">
+          <div>
+            <p class="mundial-countdown-kicker">Cuenta regresiva</p>
+            <h2>Faltan <span id="mundial-countdown-summary">--</span></h2>
+            <p class="mundial-countdown-date">Inicio oficial: 11 de junio de 2026</p>
+          </div>
+          <div class="mundial-countdown-grid" aria-label="Tiempo restante para el comienzo del Mundial 2026">
+            <div class="mundial-countdown-stat">
+              <span class="mundial-countdown-value" id="mundial-countdown-months">--</span>
+              <span class="mundial-countdown-label" id="mundial-countdown-months-label">meses</span>
+            </div>
+            <div class="mundial-countdown-stat">
+              <span class="mundial-countdown-value" id="mundial-countdown-days">--</span>
+              <span class="mundial-countdown-label" id="mundial-countdown-days-label">días</span>
+            </div>
+            <div class="mundial-countdown-stat">
+              <span class="mundial-countdown-value" id="mundial-countdown-total-days">--</span>
+              <span class="mundial-countdown-label" id="mundial-countdown-total-days-label">días totales</span>
+            </div>
+          </div>
+        </div>
         <div class="mundial-phase-toggle" id="mundial-phase-toggle">
           <button class="mundial-phase-btn active" data-phase="groups">Fase de Grupos</button>
           <button class="mundial-phase-btn" data-phase="bracket">Bracket</button>

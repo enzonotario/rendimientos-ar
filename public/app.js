@@ -91,6 +91,7 @@ function buildScatterOptions({ xTitle, yTitle, tooltipFormatter, yTickFormatter 
 document.addEventListener('DOMContentLoaded', () => {
   setupThemeToggle();
   setupA11yReadAloud();
+  setupMundialCountdown();
   init();
   setupTabs();
   setupKeyboardNav();
@@ -100,6 +101,64 @@ document.addEventListener('DOMContentLoaded', () => {
   loadCotizaciones();
   loadNewsTicker();
 });
+
+let mundialCountdownTimer = null;
+const MUNDIAL_START_DATE = new Date(2026, 5, 11);
+
+function setupMundialCountdown() {
+  const summaryEl = document.getElementById('mundial-countdown-summary');
+  const monthsEl = document.getElementById('mundial-countdown-months');
+  const daysEl = document.getElementById('mundial-countdown-days');
+  const totalDaysEl = document.getElementById('mundial-countdown-total-days');
+  const monthsLabelEl = document.getElementById('mundial-countdown-months-label');
+  const daysLabelEl = document.getElementById('mundial-countdown-days-label');
+  const totalDaysLabelEl = document.getElementById('mundial-countdown-total-days-label');
+  if (!summaryEl || !monthsEl || !daysEl || !totalDaysEl) return;
+
+  const startOfDay = (date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const addMonths = (date, months) => {
+    const next = new Date(date);
+    const originalDay = next.getDate();
+    next.setDate(1);
+    next.setMonth(next.getMonth() + months);
+    next.setDate(Math.min(originalDay, new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate()));
+    return next;
+  };
+  const formatUnit = (value, singular, plural) => `${value} ${value === 1 ? singular : plural}`;
+
+  const updateCountdown = () => {
+    const today = startOfDay(new Date());
+    const target = startOfDay(MUNDIAL_START_DATE);
+    const msPerDay = 24 * 60 * 60 * 1000;
+    const totalDays = Math.max(0, Math.ceil((target - today) / msPerDay));
+
+    let months = 0;
+    while (addMonths(today, months + 1) <= target) months++;
+    const anchor = addMonths(today, months);
+    const days = Math.max(0, Math.ceil((target - anchor) / msPerDay));
+
+    monthsEl.textContent = months;
+    daysEl.textContent = days;
+    totalDaysEl.textContent = totalDays;
+    if (monthsLabelEl) monthsLabelEl.textContent = months === 1 ? 'mes' : 'meses';
+    if (daysLabelEl) daysLabelEl.textContent = days === 1 ? 'día' : 'días';
+    if (totalDaysLabelEl) totalDaysLabelEl.textContent = totalDays === 1 ? 'día total' : 'días totales';
+
+    if (totalDays === 0) {
+      summaryEl.textContent = '0 días';
+      return;
+    }
+
+    const parts = [];
+    if (months > 0) parts.push(formatUnit(months, 'mes', 'meses'));
+    if (days > 0) parts.push(formatUnit(days, 'día', 'días'));
+    summaryEl.textContent = parts.join(' y ') || formatUnit(totalDays, 'día', 'días');
+  };
+
+  updateCountdown();
+  if (mundialCountdownTimer) clearInterval(mundialCountdownTimer);
+  mundialCountdownTimer = setInterval(updateCountdown, 60 * 60 * 1000);
+}
 
 function setupThemeToggle() {
   const saved = localStorage.getItem('theme');
