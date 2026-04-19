@@ -291,6 +291,56 @@ h1 em, h2 em, h3 em, h4 em, h5 em {
   border-bottom: 1px solid var(--border);
   gap: 12px;
 }
+
+/* Calculator modal: mono + tabular-nums for all numeric cells;
+   compact heading inside modal body; tidy inputs */
+.mundo-modal-body h3,
+.mundo-modal-header h3 {
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 400;
+  letter-spacing: var(--tracking-display);
+}
+.mundo-modal-body h4 {
+  font-family: var(--font-mono) !important;
+  font-size: 0.7rem !important;
+  font-weight: 500 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary) !important;
+  margin: 16px 0 8px !important;
+}
+.mundo-modal-body table {
+  font-family: var(--font);
+}
+.mundo-modal-body table tbody td,
+.mundo-modal-body table tfoot td {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.78rem;
+}
+.mundo-modal-body table tbody td:first-child,
+.mundo-modal-body table tfoot td:first-child {
+  font-family: var(--font);
+}
+.mundo-modal-body table thead th {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-tertiary);
+  font-weight: 500;
+}
+.mundo-modal-body input[type="number"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+.mundo-modal-body [id$="-calc-tir"],
+.mundo-modal-body [id$="-calc-duration"] {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
 .mundo-modal-header-left {
   display: flex;
   flex-direction: column;
