@@ -727,6 +727,135 @@ table.t td.cell-logo { padding-left: 0; }
   color: var(--fg-faint);
 }
 
+/* ─── Responsive ≤700px ──────────────────────────────────────── */
+@media (max-width: 700px) {
+  /* Body stays no-overflow; allow table containers to scroll horizontally */
+  section.s {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  /* Named table containers used by each screen */
+  #mundo-tbl, #lec-table, #cer-table, #sov-table, #ons-table,
+  #cmp-tbl, #pf-tbl, #pfp-tbl, #ced-tbl, #pix-tbl, #dol-tbl,
+  #bcra-tbl, #bcra-fx, #hot-tbl, #earn-tbl {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    max-width: 100%;
+  }
+  table.t { font-size: 12px; }
+  table.t th, table.t td { padding: 6px 8px; }
+  table.t th:first-child, table.t td:first-child { padding-left: 0; }
+
+  /* Top bar: brand scrolls over clock if tight; let meta wrap */
+  .top .row1 { flex-wrap: wrap; row-gap: 4px; }
+  .top .meta { margin-left: 0; font-size: 10px; gap: 10px; }
+  .brand { font-size: 13px; }
+  .brand i { font-size: 13px; }
+  nav.primary { font-size: 11px; gap: 0 2px; padding-bottom: 4px; }
+  nav.primary button { padding: 3px 8px 3px 0; }
+  nav.sub { padding: 6px 0; font-size: 11px; }
+  nav.sub button { padding: 2px 8px; }
+
+  /* Page header tighter */
+  .phd { padding: 18px 0 14px; }
+  .phd h1 { font-size: clamp(22px, 8vw, 28px); }
+  .phd p { font-size: 11px; }
+
+  /* Section headers smaller */
+  section.s h2 { margin: 16px 0 0; font-size: 11px; }
+  section.s h2 .count { font-size: 9px; }
+
+  /* Chart containers shorter */
+  .chart { height: 220px; padding: 8px 10px; }
+  .chart.chart-scatter {
+    height: clamp(360px, 95vw, 480px);
+    padding: 10px 12px;
+  }
+  .chart.chart-scatter .hd {
+    left: 12px; right: 12px; top: 6px;
+    flex-direction: column; gap: 2px;
+    align-items: flex-start;
+  }
+  .chart .hd .big { font-size: 13px; }
+
+  /* Mundial countdown stacked */
+  .tty-countdown { padding: 14px; margin: 12px 0 16px; }
+  .tty-countdown-summary { font-size: 18px; }
+  .tty-countdown-date { font-size: 10px; }
+  .tty-countdown-stats { min-width: 0; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+  .tty-countdown-stat { padding: 10px 12px; gap: 6px; }
+  .tty-countdown-value { font-size: 20px; }
+
+  /* Mundial group cards: partidos table with smaller city column */
+  .mundial-matches table.t td { padding: 4px 6px; font-size: 11px; }
+  .mundial-matches table.t td:first-child { width: 44px; font-size: 10px; }
+
+  /* Dolar controls wrap cleanly */
+  .dol-controls { gap: 8px 10px; }
+  .dol-seg button { padding: 3px 8px; font-size: 10px; }
+  .dol-24x7 { font-size: 10px; }
+
+  /* Best cards stack */
+  .dol-best-row { gap: 8px; }
+  .dol-best-card { padding: 10px 12px; }
+  .dol-best-card .val { font-size: 17px; }
+
+  /* Hot grid single col on narrow */
+  .hot-grid { grid-template-columns: 1fr; gap: 6px; }
+  .hot-card { padding: 8px 10px; gap: 8px; }
+  .hot-card .hot-name { font-size: 10px; }
+
+  /* Earnings timeline single col */
+  .earn-timeline { grid-template-columns: 1fr; gap: 6px; }
+
+  /* Bars narrower */
+  .bars .row { grid-template-columns: 140px 1fr 64px; gap: 10px; padding: 6px 0; }
+  .bars .name { font-size: 11px; }
+  .bars .val { font-size: 13px; }
+  .bars .mgr { font-size: 9px; }
+
+  /* Calc modal fits */
+  .tty-modal-overlay { padding: 16px 10px; }
+  .tty-modal .body { padding: 14px; gap: 12px; }
+  .tty-calc-inputs { grid-template-columns: repeat(2, minmax(120px, 1fr)); gap: 10px 12px; }
+  .tty-calc-inputs .out.big { font-size: 18px; }
+  .tty-calc-inputs .out { font-size: 15px; }
+  .tty-calc-strip { padding: 8px 10px; font-size: 11px; gap: 8px 12px; }
+  .tty-calc-strip input { width: 80px; }
+  .tty-calc-summary { padding: 10px 12px; font-size: 12px; }
+
+  /* Statusbar items: allow wrap */
+  .statusbar .inner { flex-wrap: wrap; row-gap: 4px; gap: 10px; font-size: 9px; }
+  .statusbar button { font-size: 9px; }
+
+  /* Footer single col stack */
+  footer.site { padding: 24px 0 16px; }
+  footer.site .cols-f { grid-template-columns: 1fr; gap: 18px; }
+  .foot-sign { flex-direction: column; gap: 6px; }
+
+  /* Search input in CEDEARs full width */
+  .ced-search { max-width: 100%; }
+
+  /* Command palette fits narrow */
+  .overlay { padding-top: 6vh; }
+  .palette { width: 94vw; }
+  .palette input { font-size: 14px; padding: 10px 12px; }
+  .palette li { padding: 6px 10px; font-size: 11px; }
+
+  /* Tweaks panel narrower */
+  .tweaks { right: 8px; bottom: 56px; width: calc(100vw - 16px); max-width: 280px; }
+}
+
+/* Extra tight ≤400px (iPhone SE-ish) */
+@media (max-width: 400px) {
+  .wrap { padding: 0 10px; }
+  .phd h1 { font-size: 22px; }
+  .tty-countdown-value { font-size: 18px; }
+  nav.primary { font-size: 10px; }
+  .tty-calc-inputs { grid-template-columns: 1fr; }
+  .tty-calc-inputs .out.big { font-size: 16px; }
+}
+
 /* Density modes */
 [data-density="compact"] table.t th,
 [data-density="compact"] table.t td { padding: 4px 8px; }
