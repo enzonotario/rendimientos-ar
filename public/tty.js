@@ -363,6 +363,7 @@ function goTo(main, sub) {
   if (location.hash !== hash) history.replaceState(null, '', hash);
   document.title = `rendimientos*.co // ${main}${sub ? ' · ' + sub : ''}`;
   renderNav();
+  updateStatusbarSection();
   renderScreen();
 }
 
@@ -1343,7 +1344,136 @@ function toggleHelp() {
   div.addEventListener('click', (e) => { if (e.target === div) div.remove(); });
 }
 
-function openCommandPalette() { /* implemented in Fase 4 */ toggleHelp(); }
+// ─── Command palette ──────────────────────────────────────────
+function buildPaletteItems() {
+  const items = [];
+  for (const n of NAV) {
+    items.push({ k: `go ${n.k}`, label: `GO · ${n.label}`, hint: n.key ? `g ${n.key}` : '', act: () => goTo(n.k, null) });
+    if (n.subs) for (const s of n.subs) {
+      items.push({ k: `go ${n.k} ${s.k}`, label: `GO · ${n.label} › ${s.label}`, hint: '', act: () => goTo(n.k, s.k) });
+    }
+  }
+  items.push(
+    { k: 'theme amber', label: 'THEME · amber', hint: '', act: () => setPalette('amber') },
+    { k: 'theme green', label: 'THEME · green', hint: '', act: () => setPalette('green') },
+    { k: 'theme white mono', label: 'THEME · white / mono', hint: '', act: () => setPalette('white') },
+    { k: 'scanlines toggle', label: 'TOGGLE · scanlines', hint: '', act: () => setScanlines(STATE.scanlines === 'on' ? 'off' : 'on') },
+    { k: 'density compact', label: 'DENSITY · compact', hint: '', act: () => setDensity('compact') },
+    { k: 'density medium', label: 'DENSITY · medium', hint: '', act: () => setDensity('medium') },
+    { k: 'density comfortable', label: 'DENSITY · comfortable', hint: '', act: () => setDensity('comfortable') },
+    { k: 'help', label: 'HELP · keyboard shortcuts', hint: '?', act: () => { closeOverlays(); toggleHelp(); } },
+  );
+  return items;
+}
+
+function openCommandPalette() {
+  if ($('#palette-overlay')) return;
+  const items = buildPaletteItems();
+  const overlay = document.createElement('div');
+  overlay.id = 'palette-overlay';
+  overlay.className = 'overlay';
+  overlay.innerHTML = `
+    <div class="palette">
+      <div class="hd"><span>/ · command palette</span><span>esc</span></div>
+      <input id="palette-input" placeholder="go mundo · theme green · scanlines…" autocomplete="off" spellcheck="false"/>
+      <ul id="palette-list"></ul>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+  const input = $('#palette-input');
+  const list = $('#palette-list');
+  let sel = 0;
+  function render(filter = '') {
+    const f = filter.toLowerCase().trim();
+    const scored = items.map(it => {
+      if (!f) return { it, score: 0 };
+      // simple fuzzy: every character of filter must appear in order in label
+      const label = (it.label + ' ' + it.k).toLowerCase();
+      let pos = 0, score = 0;
+      for (const ch of f) {
+        const idx = label.indexOf(ch, pos);
+        if (idx === -1) return null;
+        score += idx - pos;
+        pos = idx + 1;
+      }
+      return { it, score };
+    }).filter(Boolean);
+    scored.sort((a, b) => a.score - b.score);
+    const visible = scored.slice(0, 30);
+    list.innerHTML = visible.map((x, i) => `<li class="${i === sel ? 'on' : ''}" data-idx="${i}"><span>${esc(x.it.label)}</span><span class="k">${esc(x.it.hint)}</span></li>`).join('');
+    $$('li[data-idx]', list).forEach(li => {
+      li.addEventListener('mouseenter', () => { sel = +li.getAttribute('data-idx'); $$('li', list).forEach(x => x.classList.remove('on')); li.classList.add('on'); });
+      li.addEventListener('click', () => {
+        const x = visible[+li.getAttribute('data-idx')];
+        if (x) { overlay.remove(); x.it.act(); }
+      });
+    });
+    return visible;
+  }
+  let current = render('');
+  input.addEventListener('input', () => { sel = 0; current = render(input.value); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowDown') { sel = Math.min(sel + 1, current.length - 1); e.preventDefault(); render(input.value); }
+    else if (e.key === 'ArrowUp') { sel = Math.max(sel - 1, 0); e.preventDefault(); render(input.value); }
+    else if (e.key === 'Enter') { const x = current[sel]; if (x) { overlay.remove(); x.it.act(); } }
+    else if (e.key === 'Escape') { overlay.remove(); }
+  });
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+  setTimeout(() => input.focus(), 10);
+}
+
+// ─── Tweaks / settings ────────────────────────────────────────
+function setPalette(v) {
+  STATE.palette = v;
+  document.body.dataset.palette = v;
+  try { localStorage.setItem(LS.palette, v); } catch (e) {}
+  refreshTweaksPanel();
+}
+function setScanlines(v) {
+  STATE.scanlines = v;
+  document.body.dataset.scanlines = v;
+  try { localStorage.setItem(LS.scanlines, v); } catch (e) {}
+  refreshTweaksPanel();
+}
+function setDensity(v) {
+  STATE.density = v;
+  document.body.dataset.density = v;
+  try { localStorage.setItem(LS.density, v); } catch (e) {}
+  refreshTweaksPanel();
+}
+
+function toggleTweaksPanel() {
+  if ($('#tweaks-panel')) { $('#tweaks-panel').remove(); return; }
+  const div = document.createElement('div');
+  div.id = 'tweaks-panel';
+  div.className = 'tweaks';
+  document.body.appendChild(div);
+  refreshTweaksPanel();
+}
+
+function refreshTweaksPanel() {
+  const div = $('#tweaks-panel');
+  if (!div) return;
+  const seg = (name, options, current, cb) => options.map(([v, label]) =>
+    `<button class="${current === v ? 'on' : ''}" data-seg="${name}" data-v="${v}">${esc(label)}</button>`).join('');
+  div.innerHTML = `
+    <div class="hd"><span>tweaks</span><button id="tw-close" style="color:var(--inv-fg)">✕</button></div>
+    <div class="bd">
+      <div class="row"><span class="lbl">palette</span><div class="seg">${seg('palette', [['amber','amber'],['green','green'],['white','mono']], STATE.palette)}</div></div>
+      <div class="row"><span class="lbl">scanlines</span><div class="seg">${seg('scanlines', [['on','on'],['off','off']], STATE.scanlines)}</div></div>
+      <div class="row"><span class="lbl">density</span><div class="seg">${seg('density', [['compact','compact'],['medium','medium'],['comfortable','comfortable']], STATE.density)}</div></div>
+    </div>
+  `;
+  $$('button[data-seg]', div).forEach(b => {
+    b.addEventListener('click', () => {
+      const n = b.getAttribute('data-seg'), v = b.getAttribute('data-v');
+      if (n === 'palette') setPalette(v);
+      else if (n === 'scanlines') setScanlines(v);
+      else if (n === 'density') setDensity(v);
+    });
+  });
+  $('#tw-close', div).addEventListener('click', () => div.remove());
+}
 
 // ─── Footer ───────────────────────────────────────────────────
 function renderFooter() {
@@ -1414,13 +1544,39 @@ function bootPersistence() {
   document.body.dataset.density = STATE.density;
 }
 
+function renderStatusbar() {
+  let sb = $('#tty-statusbar');
+  if (!sb) {
+    sb = document.createElement('div');
+    sb.id = 'tty-statusbar';
+    sb.className = 'statusbar';
+    document.body.appendChild(sb);
+  }
+  sb.innerHTML = `<div class="wrap"><div class="inner">
+    <span class="live">live</span>
+    <span>section: <b id="sb-section">${esc(STATE.section.main)}${STATE.section.sub ? ' · ' + esc(STATE.section.sub) : ''}</b></span>
+    <span class="sp"></span>
+    <button id="sb-palette">/ palette</button>
+    <button id="sb-help">? help</button>
+    <button id="sb-tweaks">⚙ tweaks</button>
+  </div></div>`;
+  $('#sb-palette', sb).addEventListener('click', openCommandPalette);
+  $('#sb-help', sb).addEventListener('click', toggleHelp);
+  $('#sb-tweaks', sb).addEventListener('click', toggleTweaksPanel);
+}
+
+function updateStatusbarSection() {
+  const el = $('#sb-section');
+  if (el) el.textContent = STATE.section.main + (STATE.section.sub ? ' · ' + STATE.section.sub : '');
+}
+
 function boot() {
   bootPersistence();
-  // Hash overrides localStorage
   const fromHash = parseHash();
   if (fromHash) STATE.section = fromHash;
   renderTopBar();
   renderFooter();
+  renderStatusbar();
   renderScreen();
   document.addEventListener('keydown', onKey);
   window.addEventListener('hashchange', () => {
@@ -1428,6 +1584,7 @@ function boot() {
     if (h && (h.main !== STATE.section.main || h.sub !== STATE.section.sub)) {
       STATE.section = h;
       renderNav();
+      updateStatusbarSection();
       renderScreen();
     }
   });
