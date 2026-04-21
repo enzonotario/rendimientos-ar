@@ -1096,10 +1096,12 @@ ARS_SUBS.lecaps = async function(main) {
       const tem = (Math.pow(ganancia, 30 / days) - 1) * 100;
       const tna = (ganancia - 1) * (365 / days) * 100;
       const tea = (Math.pow(ganancia, 365 / days) - 1) * 100;
-      return { sym: l.ticker, days, tem, tna, tea, price, vto };
+      return { sym: l.ticker, days, dias: days, tem, tna, tea, tir: tea, price, vto, pagoFinal: l.pago_final };
     }).filter(Boolean).sort((a, b) => a.days - b.days);
 
     const state = { sel: null };
+    const byId = {};
+    for (const it of items) byId[it.sym] = it;
 
     function render() {
       $('#lec-scatter').innerHTML = scatterSVG(items, {
@@ -1108,13 +1110,13 @@ ARS_SUBS.lecaps = async function(main) {
         yFmt: v => v.toFixed(2) + '%', xFmt: v => v + 'd',
         selected: state.sel,
       });
-      wireScatterClicks($('#lec-scatter'), (sym) => { state.sel = state.sel === sym ? null : sym; render(); });
+      wireScatterClicks($('#lec-scatter'), (sym) => { state.sel = sym; render(); if (byId[sym]) openLecapCalc(byId[sym]); });
       $('#lec-count').textContent = items.length;
       $('#lec-table').innerHTML = `<table class="t">
         <thead><tr><th style="text-align:left">sym</th><th>dtm</th><th>tem</th><th>tna</th><th>tea</th><th>precio</th></tr></thead>
         <tbody>${items.map(r => {
           const s = state.sel === r.sym;
-          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}">
+          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}" title="click para abrir calculadora">
             <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
             <td class="num dim">${r.days}</td>
             <td class="num">${r.tem.toFixed(2)}%</td>
@@ -1122,12 +1124,14 @@ ARS_SUBS.lecaps = async function(main) {
             <td class="num">${r.tea.toFixed(1)}%</td>
             <td class="num">${r.price.toFixed(2)}</td>
           </tr>`;
-        }).join('')}</tbody></table>`;
+        }).join('')}</tbody></table>
+        <div class="hint" style="margin-top:8px">click en cualquier fila o punto del scatter para abrir la calculadora</div>`;
       $$('tr.clickable[data-sym]', $('#lec-table')).forEach(tr => {
         tr.addEventListener('click', () => {
           const sym = tr.getAttribute('data-sym');
-          state.sel = state.sel === sym ? null : sym;
+          state.sel = sym;
           render();
+          if (byId[sym]) openLecapCalc(byId[sym]);
         });
       });
     }
@@ -1168,10 +1172,12 @@ ARS_SUBS.cer = async function(main) {
       const ytm = calcYTM(price, flows, today);
       // Approximate real TIR = nominal TIR adjusted by CER drift rate of the flows themselves;
       // since flows are already CER-adjusted, ytm is a good real proxy.
-      return { sym, days, dur: +dur.toFixed(2), tir: ytm, price };
+      return { sym, days, dur: +dur.toFixed(2), tir: ytm, price, flujos: flows, vencimiento: bond.vencimiento };
     }).filter(x => x && x.tir != null).sort((a, b) => a.dur - b.dur);
 
     const state = { sel: null };
+    const byId = {};
+    for (const it of items) byId[it.sym] = it;
 
     function render() {
       $('#cer-scatter').innerHTML = scatterSVG(items, {
@@ -1180,25 +1186,27 @@ ARS_SUBS.cer = async function(main) {
         yFmt: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%', xFmt: v => v + 'y',
         selected: state.sel,
       });
-      wireScatterClicks($('#cer-scatter'), (sym) => { state.sel = state.sel === sym ? null : sym; render(); });
+      wireScatterClicks($('#cer-scatter'), (sym) => { state.sel = sym; render(); if (byId[sym]) openCerCalc(byId[sym]); });
       $('#cer-count').textContent = items.length;
       $('#cer-table').innerHTML = `<table class="t">
         <thead><tr><th style="text-align:left">sym</th><th>dtm</th><th>tir</th><th>dur</th><th>precio</th></tr></thead>
         <tbody>${items.map(r => {
           const s = state.sel === r.sym;
-          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}">
+          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}" title="click para abrir calculadora">
             <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
             <td class="num dim">${r.days}d</td>
             <td class="num hot">${(r.tir >= 0 ? '+' : '') + r.tir.toFixed(2)}%</td>
             <td class="num">${r.dur.toFixed(2)}</td>
             <td class="num">${fmt(r.price, 2)}</td>
           </tr>`;
-        }).join('')}</tbody></table>`;
+        }).join('')}</tbody></table>
+        <div class="hint" style="margin-top:8px">click para abrir calculadora con flujos ajustados por cer</div>`;
       $$('tr.clickable[data-sym]', $('#cer-table')).forEach(tr => {
         tr.addEventListener('click', () => {
           const sym = tr.getAttribute('data-sym');
-          state.sel = state.sel === sym ? null : sym;
+          state.sel = sym;
           render();
+          if (byId[sym]) openCerCalc(byId[sym]);
         });
       });
     }
@@ -1276,6 +1284,342 @@ function shortBank(name) {
     .toLowerCase()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
+// ─── Calculator modals ────────────────────────────────────────
+function openCalcModal({ title, sub, render }) {
+  $('.tty-modal-overlay')?.remove();
+  const overlay = document.createElement('div');
+  overlay.className = 'tty-modal-overlay';
+  overlay.innerHTML = `<div class="tty-modal">
+    <div class="hd"><span>${esc(title)}</span><button id="tty-calc-close">esc ✕</button></div>
+    ${sub ? `<div class="sub">${esc(sub)}</div>` : ''}
+    <div class="body" id="tty-calc-body"></div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('#tty-calc-close').addEventListener('click', () => overlay.remove());
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.remove(); });
+  const onEsc = (e) => { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', onEsc, true); } };
+  document.addEventListener('keydown', onEsc, true);
+  render($('#tty-calc-body', overlay));
+  return overlay;
+}
+
+// LECAP calc — price, monto, arancel, impuestos → tna/tem/tir + resumen + target tir
+function openLecapCalc(item) {
+  openCalcModal({
+    title: `${item.sym} — calculadora lecap`,
+    sub: `vence: ${fmtDateAR(item.vto)} · pago final: ${item.pagoFinal.toFixed(3)} c/100 vn · ${item.dias} días al vto`,
+    render(body) {
+      body.innerHTML = `
+        <div class="tty-calc-inputs">
+          <div class="fld"><label>precio</label><input type="number" id="c-price" value="${item.price.toFixed(2)}" step="0.01"></div>
+          <div class="fld"><label>monto a invertir ($)</label><input type="number" id="c-monto" value="1000000" step="10000"></div>
+          <div class="fld"><label>tna</label><div id="o-tna" class="out">${item.tna.toFixed(2)}%</div></div>
+          <div class="fld"><label>tem</label><div id="o-tem" class="out">${item.tem.toFixed(2)}%</div></div>
+          <div class="fld"><label>tir (tea)</label><div id="o-tir" class="out big">${item.tir.toFixed(2)}%</div></div>
+          <div class="fld"><label>días</label><div class="out">${item.dias}</div></div>
+        </div>
+        <div class="tty-calc-strip">
+          <span class="lbl">costos</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">arancel % <input type="number" id="c-arancel" value="0.10" step="0.01"></label>
+          <label style="display:inline-flex;align-items:center;gap:4px">impuestos % <input type="number" id="c-imp" value="0.01" step="0.01"></label>
+        </div>
+        <div class="tty-calc-strip accent">
+          <span class="lbl">tir objetivo</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">tir % <input type="number" id="c-ttir" placeholder="${item.tir.toFixed(1)}" step="0.1"></label>
+          <span id="o-timpl" class="val dim">ingresá una tir para ver el precio implícito</span>
+        </div>
+        <div id="o-summary" class="tty-calc-summary"></div>
+      `;
+      const $p = $('#c-price', body), $m = $('#c-monto', body), $ar = $('#c-arancel', body), $im = $('#c-imp', body), $tt = $('#c-ttir', body);
+      function recalc() {
+        const p = parseFloat($p.value) || item.price;
+        const mon = parseFloat($m.value) || 1000000;
+        const ar = parseFloat($ar.value) || 0;
+        const im = parseFloat($im.value) || 0;
+        const ep = p * (1 + (ar + im) / 100);
+        const tna = (item.pagoFinal / ep - 1) * (365 / item.dias) * 100;
+        const tir = (Math.pow(item.pagoFinal / ep, 365 / item.dias) - 1) * 100;
+        const meses = Math.max(item.dias / 30, 0.1);
+        const tem = (Math.pow(item.pagoFinal / ep, 1 / meses) - 1) * 100;
+        $('#o-tna', body).textContent = tna.toFixed(2) + '%';
+        $('#o-tem', body).textContent = tem.toFixed(2) + '%';
+        const tirEl = $('#o-tir', body);
+        tirEl.textContent = tir.toFixed(2) + '%';
+        tirEl.style.color = tir >= 0 ? 'var(--up)' : 'var(--down)';
+        const nominales = (mon / ep) * 100;
+        const cobro = nominales / 100 * item.pagoFinal;
+        const gan = cobro - mon;
+        $('#o-summary', body).innerHTML = `
+          <div class="row"><span>comprás</span><b>${fmt(nominales, 0)} vn a $${fmt(p, 2)}</b></div>
+          <div class="row"><span>invertís</span><b>$${fmt(mon, 2)}</b></div>
+          <div class="row"><span>al vto cobrás</span><b>$${fmt(cobro, 2)}</b></div>
+          <div class="row total ${gan >= 0 ? 'up' : 'down'}"><span>ganancia</span><b>${gan >= 0 ? '+' : ''}$${fmt(gan, 2)}</b></div>`;
+      }
+      function recalcTarget() {
+        const t = parseFloat($tt.value);
+        const out = $('#o-timpl', body);
+        if (!t && t !== 0) { out.innerHTML = 'ingresá una tir para ver el precio implícito'; out.className = 'val dim'; return; }
+        const impl = item.pagoFinal / Math.pow(1 + t / 100, item.dias / 365);
+        const cur = parseFloat($p.value) || item.price;
+        const upside = ((impl - cur) / cur) * 100;
+        out.className = 'val';
+        out.innerHTML = `precio <b class="hot">$${fmt(impl, 2)}</b> · upside <b class="${upside >= 0 ? 'up' : 'down'}">${upside >= 0 ? '+' : ''}${upside.toFixed(2)}%</b>`;
+      }
+      [$p, $ar, $im].forEach(el => el.addEventListener('input', () => { recalc(); recalcTarget(); }));
+      $m.addEventListener('input', recalc);
+      $tt.addEventListener('input', recalcTarget);
+      recalc();
+    }
+  });
+}
+
+// CER calc — price ARS, duration, ytm real, target ytm
+function openCerCalc(item) {
+  openCalcModal({
+    title: `${item.sym} — calculadora cer`,
+    sub: `vence: ${item.vencimiento || '—'} · tir real ${item.tir.toFixed(2)}% · duration ${item.dur.toFixed(2)}y`,
+    render(body) {
+      body.innerHTML = `
+        <div class="tty-calc-inputs">
+          <div class="fld"><label>precio (ars)</label><input type="number" id="c-price" value="${item.price.toFixed(2)}" step="0.01"></div>
+          <div class="fld"><label>monto a invertir ($)</label><input type="number" id="c-monto" value="1000000" step="10000"></div>
+          <div class="fld"><label>tir real</label><div id="o-tir" class="out big" style="color:${item.tir >= 0 ? 'var(--up)' : 'var(--down)'}">${(item.tir >= 0 ? '+' : '') + item.tir.toFixed(2)}%</div></div>
+          <div class="fld"><label>duration</label><div class="out">${item.dur.toFixed(2)}y</div></div>
+        </div>
+        <div class="tty-calc-strip">
+          <span class="lbl">costos</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">arancel % <input type="number" id="c-arancel" value="0.45" step="0.01"></label>
+          <label style="display:inline-flex;align-items:center;gap:4px">impuestos % <input type="number" id="c-imp" value="0.01" step="0.01"></label>
+        </div>
+        <div class="tty-calc-strip accent">
+          <span class="lbl">tir objetivo</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">tir real % <input type="number" id="c-ttir" placeholder="${item.tir.toFixed(1)}" step="0.1"></label>
+          <span id="o-timpl" class="val dim">ingresá una tir real para ver el precio implícito</span>
+        </div>
+        <div id="o-summary" class="tty-calc-summary"></div>
+        <div class="hint">los flujos reales futuros dependen de cómo evolucione el cer. esta calc usa los flujos ya ajustados al cer actual.</div>
+      `;
+      const $p = $('#c-price', body), $m = $('#c-monto', body), $ar = $('#c-arancel', body), $im = $('#c-imp', body), $tt = $('#c-ttir', body);
+      function recalc() {
+        const p = parseFloat($p.value) || item.price;
+        const mon = parseFloat($m.value) || 1000000;
+        const ar = parseFloat($ar.value) || 0;
+        const im = parseFloat($im.value) || 0;
+        const ep = p * (1 + (ar + im) / 100);
+        const pricePer1VN = ep / 100;
+        const nominales = mon / pricePer1VN;
+        const flows = item.flujos || [];
+        let total = 0;
+        for (const f of flows) total += f.monto * nominales;
+        const gan = total - mon;
+        $('#o-summary', body).innerHTML = `
+          <div class="row"><span>comprás</span><b>${fmt(nominales, 0)} vn a $${fmt(pricePer1VN, 4)}/vn</b></div>
+          <div class="row"><span>invertís</span><b>$${fmt(mon, 2)}</b></div>
+          ${total > 0 ? `<div class="row"><span>cobrás (estimado)</span><b>$${fmt(total, 2)}</b></div>
+          <div class="row total ${gan >= 0 ? 'up' : 'down'}"><span>ganancia estimada</span><b>${gan >= 0 ? '+' : ''}$${fmt(gan, 2)}</b></div>` : ''}`;
+      }
+      function recalcTarget() {
+        const t = parseFloat($tt.value);
+        const out = $('#o-timpl', body);
+        if ((!t && t !== 0) || !item.flujos || !item.flujos.length) { out.innerHTML = 'ingresá una tir real para ver el precio implícito'; out.className = 'val dim'; return; }
+        const today = new Date();
+        const r = t / 100;
+        const MS = 365.25 * 24 * 60 * 60 * 1000;
+        let pv = 0;
+        for (const f of item.flujos) {
+          const dt = f.fecha instanceof Date ? f.fecha : new Date(f.fecha);
+          const yrs = (dt - today) / MS;
+          if (yrs > 0) pv += f.monto / Math.pow(1 + r, yrs);
+        }
+        const impl = pv * 100;
+        const cur = parseFloat($p.value) || item.price;
+        const upside = ((impl - cur) / cur) * 100;
+        out.className = 'val';
+        out.innerHTML = `precio <b class="hot">$${fmt(impl, 2)}</b> · upside <b class="${upside >= 0 ? 'up' : 'down'}">${upside >= 0 ? '+' : ''}${upside.toFixed(2)}%</b>`;
+      }
+      [$p, $ar, $im].forEach(el => el.addEventListener('input', () => { recalc(); recalcTarget(); }));
+      $m.addEventListener('input', recalc);
+      $tt.addEventListener('input', recalcTarget);
+      recalc();
+    }
+  });
+}
+
+// Bonos soberanos calc — priceUsd, monto usd, ytm, duration, flows + target ytm
+function openSovCalc(item) {
+  openCalcModal({
+    title: `${item.sym} — calculadora bono soberano`,
+    sub: `${item.ley || 'ley local'} · vence ${item.mat || '—'} · cupón ${item.cpn || '0'}% · ytm ${item.ytm.toFixed(2)}% · dur ${item.dur.toFixed(2)}y`,
+    render(body) {
+      body.innerHTML = `
+        <div class="tty-calc-inputs">
+          <div class="fld"><label>precio (usd)</label><input type="number" id="c-price" value="${item.price.toFixed(2)}" step="0.01"></div>
+          <div class="fld"><label>monto a invertir (usd)</label><input type="number" id="c-monto" value="10000" step="100"></div>
+          <div class="fld"><label>ytm</label><div id="o-ytm" class="out big" style="color:${item.ytm >= 0 ? 'var(--up)' : 'var(--down)'}">${item.ytm.toFixed(2)}%</div></div>
+          <div class="fld"><label>duration</label><div class="out">${item.dur.toFixed(2)}y</div></div>
+        </div>
+        <div class="tty-calc-strip">
+          <span class="lbl">costos</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">arancel % <input type="number" id="c-arancel" value="0.45" step="0.01"></label>
+          <label style="display:inline-flex;align-items:center;gap:4px">impuestos % <input type="number" id="c-imp" value="0.01" step="0.01"></label>
+        </div>
+        <div class="tty-calc-strip accent">
+          <span class="lbl">ytm objetivo</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">ytm % <input type="number" id="c-tytm" placeholder="${item.ytm.toFixed(1)}" step="0.1"></label>
+          <span id="o-timpl" class="val dim">ingresá una ytm para ver el precio implícito</span>
+        </div>
+        <div id="o-summary" class="tty-calc-summary"></div>
+        ${item.flujos && item.flujos.length ? `<div id="o-flows"></div>` : ''}
+      `;
+      const $p = $('#c-price', body), $m = $('#c-monto', body), $ar = $('#c-arancel', body), $im = $('#c-imp', body), $tt = $('#c-tytm', body);
+      function recalc() {
+        const p = parseFloat($p.value) || item.price;
+        const mon = parseFloat($m.value) || 10000;
+        const ar = parseFloat($ar.value) || 0;
+        const im = parseFloat($im.value) || 0;
+        const ep = p * (1 + (ar + im) / 100);
+        const nominales = mon / (ep / 100);
+        const scale = nominales / 100;
+        const flows = item.flujos || [];
+        let total = 0;
+        const rows = flows.map(f => {
+          const scaled = f.monto * scale;
+          total += scaled;
+          return `<tr><td>${esc(fmtDateAR(f.fecha))}</td><td class="num">$${fmt(f.monto, 2)}</td><td class="num">$${fmt(scaled, 2)}</td></tr>`;
+        }).join('');
+        const gan = total - mon;
+        $('#o-summary', body).innerHTML = `
+          <div class="row"><span>comprás</span><b>${fmt(nominales, 0)} vn a $${fmt(p / 100, 4)}/vn</b></div>
+          <div class="row"><span>invertís</span><b>usd ${fmt(mon, 2)}</b></div>
+          <div class="row"><span>cobros totales</span><b>usd ${fmt(total, 2)}</b></div>
+          <div class="row total ${gan >= 0 ? 'up' : 'down'}"><span>ganancia</span><b>${gan >= 0 ? '+' : ''}usd ${fmt(gan, 2)}</b></div>`;
+        const flowsEl = $('#o-flows', body);
+        if (flowsEl && flows.length) {
+          flowsEl.innerHTML = `<h4 style="margin:6px 0 0;color:var(--fg-faint);font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:0.08em">flujos de fondos</h4>
+            <table class="t" style="margin-top:6px">
+              <thead><tr><th style="text-align:left">fecha</th><th>por 100 vn</th><th>tu inversión</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>`;
+        }
+      }
+      function recalcTarget() {
+        const t = parseFloat($tt.value);
+        const out = $('#o-timpl', body);
+        if ((!t && t !== 0) || !item.flujos || !item.flujos.length) { out.innerHTML = 'ingresá una ytm para ver el precio implícito'; out.className = 'val dim'; return; }
+        const today = new Date();
+        const r = t / 100;
+        const MS = 365.25 * 24 * 60 * 60 * 1000;
+        let pv = 0;
+        for (const f of item.flujos) {
+          const dt = f.fecha instanceof Date ? f.fecha : new Date(f.fecha);
+          const yrs = (dt - today) / MS;
+          if (yrs > 0) pv += f.monto / Math.pow(1 + r, yrs);
+        }
+        const cur = parseFloat($p.value) || item.price;
+        const upside = ((pv - cur) / cur) * 100;
+        out.className = 'val';
+        out.innerHTML = `precio <b class="hot">$${fmt(pv, 2)}</b> · upside <b class="${upside >= 0 ? 'up' : 'down'}">${upside >= 0 ? '+' : ''}${upside.toFixed(2)}%</b>`;
+      }
+      [$p, $ar, $im].forEach(el => el.addEventListener('input', () => { recalc(); recalcTarget(); }));
+      $m.addEventListener('input', recalc);
+      $tt.addEventListener('input', recalcTarget);
+      recalc();
+    }
+  });
+}
+
+// ON calc — same as sovereign but price is in / 1 VN (x100 already done upstream)
+function openOnCalc(item) {
+  openCalcModal({
+    title: `${item.sym} — calculadora obligación negociable`,
+    sub: `${item.name || ''} · vence ${item.mat || '—'} · ytm ${item.ytm.toFixed(2)}% · dur ${item.dur.toFixed(2)}y`,
+    render(body) {
+      body.innerHTML = `
+        <div class="tty-calc-inputs">
+          <div class="fld"><label>precio (usd)</label><input type="number" id="c-price" value="${item.price.toFixed(2)}" step="0.01"></div>
+          <div class="fld"><label>monto a invertir (usd)</label><input type="number" id="c-monto" value="10000" step="100"></div>
+          <div class="fld"><label>ytm</label><div id="o-ytm" class="out big" style="color:${item.ytm >= 0 ? 'var(--up)' : 'var(--down)'}">${item.ytm.toFixed(2)}%</div></div>
+          <div class="fld"><label>duration</label><div class="out">${item.dur.toFixed(2)}y</div></div>
+        </div>
+        <div class="tty-calc-strip">
+          <span class="lbl">costos</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">arancel % <input type="number" id="c-arancel" value="0.45" step="0.01"></label>
+          <label style="display:inline-flex;align-items:center;gap:4px">impuestos % <input type="number" id="c-imp" value="0.01" step="0.01"></label>
+        </div>
+        <div class="tty-calc-strip accent">
+          <span class="lbl">ytm objetivo</span>
+          <label style="display:inline-flex;align-items:center;gap:4px">ytm % <input type="number" id="c-tytm" placeholder="${item.ytm.toFixed(1)}" step="0.1"></label>
+          <span id="o-timpl" class="val dim">ingresá una ytm para ver el precio implícito</span>
+        </div>
+        <div id="o-summary" class="tty-calc-summary"></div>
+        ${item.flujos && item.flujos.length ? `<div id="o-flows"></div>` : ''}
+      `;
+      const $p = $('#c-price', body), $m = $('#c-monto', body), $ar = $('#c-arancel', body), $im = $('#c-imp', body), $tt = $('#c-tytm', body);
+      function recalc() {
+        // ON prices come from data912 as per-100 VN (px_ask). Flow amounts are per-1 VN.
+        const p = parseFloat($p.value) || item.price;
+        const mon = parseFloat($m.value) || 10000;
+        const ar = parseFloat($ar.value) || 0;
+        const im = parseFloat($im.value) || 0;
+        const ep = p * (1 + (ar + im) / 100);
+        const pricePer1 = ep / 100;
+        const nominales = mon / pricePer1;
+        const flows = item.flujos || [];
+        let total = 0;
+        const rows = flows.map(f => {
+          const scaled = f.monto * nominales;
+          total += scaled;
+          return `<tr><td>${esc(fmtDateAR(f.fecha))}</td><td class="num">$${fmt(f.monto, 4)}</td><td class="num">$${fmt(scaled, 2)}</td></tr>`;
+        }).join('');
+        const gan = total - mon;
+        $('#o-summary', body).innerHTML = `
+          <div class="row"><span>comprás</span><b>${fmt(nominales, 0)} vn a $${fmt(pricePer1, 4)}/vn</b></div>
+          <div class="row"><span>invertís</span><b>usd ${fmt(mon, 2)}</b></div>
+          <div class="row"><span>cobros totales</span><b>usd ${fmt(total, 2)}</b></div>
+          <div class="row total ${gan >= 0 ? 'up' : 'down'}"><span>ganancia</span><b>${gan >= 0 ? '+' : ''}usd ${fmt(gan, 2)}</b></div>`;
+        const flowsEl = $('#o-flows', body);
+        if (flowsEl && flows.length) {
+          flowsEl.innerHTML = `<h4 style="margin:6px 0 0;color:var(--fg-faint);font-size:11px;font-weight:400;text-transform:uppercase;letter-spacing:0.08em">flujos de fondos</h4>
+            <table class="t" style="margin-top:6px">
+              <thead><tr><th style="text-align:left">fecha</th><th>por 1 vn</th><th>tu inversión</th></tr></thead>
+              <tbody>${rows}</tbody>
+            </table>`;
+        }
+      }
+      function recalcTarget() {
+        const t = parseFloat($tt.value);
+        const out = $('#o-timpl', body);
+        if ((!t && t !== 0) || !item.flujos || !item.flujos.length) { out.innerHTML = 'ingresá una ytm para ver el precio implícito'; out.className = 'val dim'; return; }
+        const today = new Date();
+        const r = t / 100;
+        const MS = 365.25 * 24 * 60 * 60 * 1000;
+        let pv = 0;
+        for (const f of item.flujos) {
+          const dt = f.fecha instanceof Date ? f.fecha : new Date(f.fecha);
+          const yrs = (dt - today) / MS;
+          if (yrs > 0) pv += f.monto / Math.pow(1 + r, yrs);
+        }
+        const implied100 = pv * 100;
+        const cur = parseFloat($p.value) || item.price;
+        const upside = ((implied100 - cur) / cur) * 100;
+        out.className = 'val';
+        out.innerHTML = `precio <b class="hot">$${fmt(implied100, 2)}</b> · upside <b class="${upside >= 0 ? 'up' : 'down'}">${upside >= 0 ? '+' : ''}${upside.toFixed(2)}%</b>`;
+      }
+      [$p, $ar, $im].forEach(el => el.addEventListener('input', () => { recalc(); recalcTarget(); }));
+      $m.addEventListener('input', recalc);
+      $tt.addEventListener('input', recalcTarget);
+      recalc();
+    }
+  });
+}
+
+function fmtDateAR(d) {
+  if (!d) return '—';
+  const dt = d instanceof Date ? d : new Date(d);
+  if (isNaN(dt)) return String(d);
+  return `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth() + 1).padStart(2,'0')}/${dt.getFullYear()}`;
+}
+
 // ─── Screen: Bonos soberanos ──────────────────────────────────
 async function screenBonos(main) {
   main.innerHTML = pHd('bonos · soberanos usd', 'Bonos Soberanos', 'Bonares (ley local) y Globales (ley NY). YTM × duration con precios en vivo.')
@@ -1308,11 +1652,14 @@ async function screenBonos(main) {
         ytm,
         dur: +dur.toFixed(2),
         price: priceUsd,
+        flujos: flows,
       });
     }
     items.sort((a, b) => a.dur - b.dur);
 
     const state = { sel: null };
+    const byId = {};
+    for (const it of items) byId[it.sym] = it;
 
     function render() {
       $('#sov-scatter').innerHTML = scatterSVG(items, {
@@ -1321,13 +1668,13 @@ async function screenBonos(main) {
         yFmt: v => v.toFixed(1) + '%', xFmt: v => v + 'y',
         selected: state.sel,
       });
-      wireScatterClicks($('#sov-scatter'), (sym) => { state.sel = state.sel === sym ? null : sym; render(); });
+      wireScatterClicks($('#sov-scatter'), (sym) => { state.sel = sym; render(); if (byId[sym]) openSovCalc(byId[sym]); });
       $('#sov-count').textContent = items.length;
       $('#sov-table').innerHTML = `<table class="t">
         <thead><tr><th style="text-align:left">sym</th><th style="text-align:left">mat</th><th>cpn</th><th>ytm</th><th>dur</th><th>precio</th></tr></thead>
         <tbody>${items.map(r => {
           const s = state.sel === r.sym;
-          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}">
+          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}" title="click para abrir calculadora">
             <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
             <td class="dim">${esc(r.mat)}</td>
             <td class="num dim">${r.cpn}%</td>
@@ -1335,12 +1682,14 @@ async function screenBonos(main) {
             <td class="num">${r.dur.toFixed(2)}</td>
             <td class="num">${r.price.toFixed(2)}</td>
           </tr>`;
-        }).join('')}</tbody></table>`;
+        }).join('')}</tbody></table>
+        <div class="hint" style="margin-top:8px">click para abrir calculadora con flujos</div>`;
       $$('tr.clickable[data-sym]', $('#sov-table')).forEach(tr => {
         tr.addEventListener('click', () => {
           const sym = tr.getAttribute('data-sym');
-          state.sel = state.sel === sym ? null : sym;
+          state.sel = sym;
           render();
+          if (byId[sym]) openSovCalc(byId[sym]);
         });
       });
     }
@@ -1385,11 +1734,14 @@ async function screenONs(main) {
         ytm,
         dur: +dur.toFixed(2),
         price: priceRaw,
+        flujos: flows,
       });
     }
     items.sort((a, b) => b.ytm - a.ytm);
 
     const state = { sel: null };
+    const byId = {};
+    for (const it of items) byId[it.sym] = it;
 
     function render() {
       $('#ons-scatter').innerHTML = scatterSVG(items, {
@@ -1398,13 +1750,13 @@ async function screenONs(main) {
         yFmt: v => v.toFixed(1) + '%', xFmt: v => v + 'y',
         selected: state.sel,
       });
-      wireScatterClicks($('#ons-scatter'), (sym) => { state.sel = state.sel === sym ? null : sym; render(); });
+      wireScatterClicks($('#ons-scatter'), (sym) => { state.sel = sym; render(); if (byId[sym]) openOnCalc(byId[sym]); });
       $('#ons-count').textContent = items.length;
       $('#ons-table').innerHTML = `<table class="t">
         <thead><tr><th style="text-align:left">sym</th><th style="text-align:left">emisor</th><th style="text-align:left">mat</th><th>ytm</th><th>dur</th><th>precio</th></tr></thead>
         <tbody>${items.map(r => {
           const s = state.sel === r.sym;
-          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}">
+          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}" title="click para abrir calculadora">
             <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
             <td class="dim">${esc(r.name)}</td>
             <td class="dim">${esc(r.mat)}</td>
@@ -1412,12 +1764,14 @@ async function screenONs(main) {
             <td class="num">${r.dur.toFixed(2)}</td>
             <td class="num">${r.price.toFixed(2)}</td>
           </tr>`;
-        }).join('')}</tbody></table>`;
+        }).join('')}</tbody></table>
+        <div class="hint" style="margin-top:8px">click para abrir calculadora con flujos</div>`;
       $$('tr.clickable[data-sym]', $('#ons-table')).forEach(tr => {
         tr.addEventListener('click', () => {
           const sym = tr.getAttribute('data-sym');
-          state.sel = state.sel === sym ? null : sym;
+          state.sel = sym;
           render();
+          if (byId[sym]) openOnCalc(byId[sym]);
         });
       });
     }
