@@ -5,7 +5,7 @@
 // ─── State ────────────────────────────────────────────────────
 const STATE = {
   section: { main: 'mundo', sub: null },
-  palette: 'amber',
+  palette: 'white',
   scanlines: 'on',
   density: 'medium',
 };
