@@ -860,7 +860,8 @@ ARS_SUBS.comparador = async function(main) {
       if (g.activo === false) continue;
       unified.push({ name: g.nombre, type: g.tipo || 'Billetera', tna: +g.tna || 0, tag: g.limite || '' });
     }
-    const fcis = (fciRes.data || []).filter(f => f.nombre && f.tna > 0).sort((a, b) => b.tna - a.tna).slice(0, 10);
+    // Filter out Renta Mixta noise — MM rates are in 18-35% band; drop anything > 60%
+    const fcis = (fciRes.data || []).filter(f => f.nombre && f.tna > 0 && f.tna < 60 && !/renta\s+mixta/i.test(f.nombre)).sort((a, b) => b.tna - a.tna).slice(0, 10);
     for (const f of fcis) {
       unified.push({ name: f.nombre.replace(/ - Clase [A-Z]$/, ''), type: 'FCI MM', tna: +f.tna, tag: '' });
     }
@@ -911,26 +912,351 @@ function shortBank(name) {
     .toLowerCase()
     .replace(/\b\w/g, c => c.toUpperCase());
 }
+// ─── Screen: Bonos soberanos ──────────────────────────────────
 async function screenBonos(main) {
-  stubScreen(main, { tag: 'bonos · soberanos usd', title: 'Bonos Soberanos', sub: 'Curva de Bonares y Globales en dólares.' });
+  main.innerHTML = pHd('bonos · soberanos usd', 'Bonos Soberanos', 'Bonares (ley local) y Globales (ley NY). YTM × duration con precios en vivo.')
+    + `<div class="cols lg-chart"><div id="sov-scatter"><div class="loading-row"> cargando curva…</div></div><div><section class="s"><h2><span>ladder</span><span class="line"></span><span class="count" id="sov-count">…</span></h2><div id="sov-table"><div class="loading-row"> cargando tabla…</div></div></section></div></div>`;
+  try {
+    const [cfg, sovRes] = await Promise.all([
+      fetchCached('/api/config', 120_000),
+      fetchCached('/api/soberanos', 60_000).catch(() => ({ data: [] })),
+    ]);
+    const soberanos = cfg.soberanos || {};
+    const prices = sovRes.data || [];
+    const today = new Date();
+    const items = [];
+    for (const bp of prices) {
+      const bc = soberanos[bp.symbol];
+      if (!bc || !bc.flujos) continue;
+      const priceUsd = +(bp.ask > 0 ? bp.ask : (bp.price_usd || bp.price || 0));
+      if (!priceUsd || priceUsd <= 0) continue;
+      const flows = bc.flujos.map(f => ({ fecha: parseLocalDate(f.fecha), monto: +f.monto })).filter(f => f.fecha && f.fecha > today);
+      if (!flows.length) continue;
+      const ytm = calcYTM(priceUsd, flows, today);
+      if (isNaN(ytm) || !isFinite(ytm)) continue;
+      const dur = calcDuration(priceUsd, flows, today, ytm);
+      const cpn = (bc.flujos.length >= 2) ? (bc.flujos[0].monto * 2 / 100) * 100 : 0;
+      items.push({
+        sym: bp.symbol,
+        ley: bc.ley || '',
+        mat: bc.vencimiento || '',
+        cpn: cpn.toFixed(2),
+        ytm,
+        dur: +dur.toFixed(2),
+        price: priceUsd,
+      });
+    }
+    items.sort((a, b) => a.dur - b.dur);
+
+    const state = { sel: null };
+
+    function render() {
+      $('#sov-scatter').innerHTML = scatterSVG(items, {
+        xKey: 'dur', yKey: 'ytm', labelKey: 'sym',
+        xLabel: 'dur', yLabel: 'ytm',
+        yFmt: v => v.toFixed(1) + '%', xFmt: v => v + 'y',
+        selected: state.sel,
+      });
+      wireScatterClicks($('#sov-scatter'), (sym) => { state.sel = state.sel === sym ? null : sym; render(); });
+      $('#sov-count').textContent = items.length;
+      $('#sov-table').innerHTML = `<table class="t">
+        <thead><tr><th style="text-align:left">sym</th><th style="text-align:left">mat</th><th>cpn</th><th>ytm</th><th>dur</th><th>precio</th></tr></thead>
+        <tbody>${items.map(r => {
+          const s = state.sel === r.sym;
+          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}">
+            <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
+            <td class="dim">${esc(r.mat)}</td>
+            <td class="num dim">${r.cpn}%</td>
+            <td class="num hot">${r.ytm.toFixed(2)}%</td>
+            <td class="num">${r.dur.toFixed(2)}</td>
+            <td class="num">${r.price.toFixed(2)}</td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+      $$('tr.clickable[data-sym]', $('#sov-table')).forEach(tr => {
+        tr.addEventListener('click', () => {
+          const sym = tr.getAttribute('data-sym');
+          state.sel = state.sel === sym ? null : sym;
+          render();
+        });
+      });
+    }
+    if (!items.length) { $('#sov-scatter').innerHTML = '<div class="empty-state">sin datos de mercado</div>'; return; }
+    render();
+  } catch (e) {
+    $('#sov-scatter').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
+
+// ─── Screen: ONs ──────────────────────────────────────────────
 async function screenONs(main) {
-  stubScreen(main, { tag: 'ons · corporativos', title: 'Obligaciones Negociables', sub: 'Bonos corporativos USD, YTM contra duración.' });
+  main.innerHTML = pHd('ons · corporativos', 'Obligaciones Negociables', 'Bonos corporativos USD. YTM × duration con precios en vivo (especie D).')
+    + `<div class="cols lg-chart"><div id="ons-scatter"><div class="loading-row"> cargando curva…</div></div><div><section class="s"><h2><span>ladder</span><span class="line"></span><span class="count" id="ons-count">…</span></h2><div id="ons-table"><div class="loading-row"> cargando tabla…</div></div></section></div></div>`;
+  try {
+    const [cfg, pricesRes] = await Promise.all([
+      fetchCached('/api/config', 120_000),
+      fetchCached('/api/ons', 60_000).catch(() => ({ data: [] })),
+    ]);
+    const onsConfig = cfg.ons || {};
+    const prices = pricesRes.data || [];
+    const priceLookup = {};
+    for (const p of prices) priceLookup[p.symbol] = p;
+    const today = new Date();
+    const items = [];
+    for (const [key, bond] of Object.entries(onsConfig)) {
+      const d912 = bond.ticker_d912;
+      const pd = priceLookup[d912];
+      if (!pd) continue;
+      const priceRaw = +(pd.px_ask > 0 ? pd.px_ask : pd.c);
+      if (!priceRaw || priceRaw <= 0) continue;
+      const flows = (bond.flujos || []).map(f => ({ fecha: parseLocalDate(f.fecha), monto: +f.monto })).filter(f => f.fecha && f.fecha > today);
+      if (!flows.length) continue;
+      const ytm = calcYTM(priceRaw / 100, flows, today);
+      if (isNaN(ytm) || !isFinite(ytm)) continue;
+      const dur = calcDuration(priceRaw / 100, flows, today, ytm);
+      items.push({
+        sym: key,
+        name: bond.nombre || '',
+        d912,
+        mat: bond.vencimiento || '',
+        ytm,
+        dur: +dur.toFixed(2),
+        price: priceRaw,
+      });
+    }
+    items.sort((a, b) => b.ytm - a.ytm);
+
+    const state = { sel: null };
+
+    function render() {
+      $('#ons-scatter').innerHTML = scatterSVG(items, {
+        xKey: 'dur', yKey: 'ytm', labelKey: 'sym',
+        xLabel: 'dur', yLabel: 'ytm',
+        yFmt: v => v.toFixed(1) + '%', xFmt: v => v + 'y',
+        selected: state.sel,
+      });
+      wireScatterClicks($('#ons-scatter'), (sym) => { state.sel = state.sel === sym ? null : sym; render(); });
+      $('#ons-count').textContent = items.length;
+      $('#ons-table').innerHTML = `<table class="t">
+        <thead><tr><th style="text-align:left">sym</th><th style="text-align:left">emisor</th><th style="text-align:left">mat</th><th>ytm</th><th>dur</th><th>precio</th></tr></thead>
+        <tbody>${items.map(r => {
+          const s = state.sel === r.sym;
+          return `<tr class="clickable${s ? ' sel' : ''}" data-sym="${esc(r.sym)}">
+            <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
+            <td class="dim">${esc(r.name)}</td>
+            <td class="dim">${esc(r.mat)}</td>
+            <td class="num hot">${r.ytm.toFixed(2)}%</td>
+            <td class="num">${r.dur.toFixed(2)}</td>
+            <td class="num">${r.price.toFixed(2)}</td>
+          </tr>`;
+        }).join('')}</tbody></table>`;
+      $$('tr.clickable[data-sym]', $('#ons-table')).forEach(tr => {
+        tr.addEventListener('click', () => {
+          const sym = tr.getAttribute('data-sym');
+          state.sel = state.sel === sym ? null : sym;
+          render();
+        });
+      });
+    }
+    if (!items.length) { $('#ons-scatter').innerHTML = '<div class="empty-state">sin datos</div>'; return; }
+    render();
+  } catch (e) {
+    $('#ons-scatter').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
+
+// ─── Screen: Hipotecarios ─────────────────────────────────────
 async function screenHipotecarios(main) {
-  stubScreen(main, { tag: 'hipotecarios · uva', title: 'Hipotecarios', sub: 'TNA de créditos UVA por banco.' });
+  main.innerHTML = pHd('hipotecarios · uva', 'Hipotecarios', 'TNA de créditos hipotecarios UVA por banco (ordenadas de menor a mayor: gana la más baja).')
+    + `<div id="hip-bars"><div class="loading-row"> cargando…</div></div>`;
+  try {
+    const raw = await fetchCached('/api/hipotecarios', 300_000);
+    const list = (raw.data || []).filter(x => x.tna != null && x.tna > 0)
+      .map(x => ({
+        name: x.banco,
+        tna: +x.tna,
+        tag: `${x.financiamiento || ''} · ${x.plazo_max_anios || '?'}y · cuota/ingreso ${x.relacion_cuota_ingreso || ''}`.replace(/\s+·\s+·/g, ' ·').trim(),
+      }))
+      .sort((a, b) => a.tna - b.tna);
+    if (!list.length) { $('#hip-bars').innerHTML = '<div class="empty-state">sin datos</div>'; return; }
+    renderBars($('#hip-bars'), list, {
+      valFmt: v => v.toFixed(2) + '%',
+      valSub: 'TNA',
+      subLabel: r => r.tag,
+    });
+  } catch (e) {
+    $('#hip-bars').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
+
+// ─── Screen: Dólar ────────────────────────────────────────────
 async function screenDolar(main) {
-  stubScreen(main, { tag: 'dólar · cotizaciones', title: 'Dólar', sub: 'Oficial, Blue, MEP, CCL, Cripto, Tarjeta.' });
+  main.innerHTML = pHd('dólar · cotizaciones', 'Dólar', 'Cotizaciones de las principales variantes del dólar frente al peso argentino.')
+    + `<section class="s"><h2><span>cotizaciones</span><span class="line"></span><span class="count" id="dol-count">…</span></h2><div id="dol-tbl"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>brecha mep / oficial · evolución</span><span class="line"></span></h2><div id="dol-chart"><div class="loading-row"> cargando serie…</div></div></section>`;
+  try {
+    const rows = await fetch('https://api.argentinadatos.com/v1/cotizaciones/dolares/').then(r => r.json()).catch(() => []);
+    // Latest quote per "casa"
+    const latest = {};
+    for (const r of rows) {
+      const prev = latest[r.casa];
+      if (!prev || r.fecha > prev.fecha) latest[r.casa] = r;
+    }
+    const order = ['oficial', 'blue', 'bolsa', 'contadoconliqui', 'cripto', 'tarjeta', 'mayorista'];
+    const nameMap = { oficial: 'Oficial', blue: 'Blue', bolsa: 'MEP (bolsa)', contadoconliqui: 'CCL', cripto: 'Cripto', tarjeta: 'Tarjeta', mayorista: 'Mayorista' };
+    const list = order.filter(k => latest[k]).map(k => {
+      const r = latest[k];
+      return { name: nameMap[k], venta: +r.venta, compra: +r.compra, spread: (+r.venta - +r.compra), fecha: r.fecha };
+    });
+    $('#dol-count').textContent = list.length;
+    $('#dol-tbl').innerHTML = list.length ? `<table class="t">
+      <thead><tr><th style="text-align:left">cotización</th><th>compra</th><th>venta</th><th>spread</th><th style="text-align:left">fecha</th></tr></thead>
+      <tbody>${list.map((r, i) => `<tr>
+        <td><span class="${i===0?'hot':''}">${esc(r.name)}</span></td>
+        <td class="num dim">$${fmt(r.compra, 2)}</td>
+        <td class="num hot">$${fmt(r.venta, 2)}</td>
+        <td class="num dim">$${fmt(r.spread, 2)}</td>
+        <td class="dim">${esc(r.fecha)}</td>
+      </tr>`).join('')}</tbody></table>` : `<div class="empty-state">sin datos</div>`;
+
+    // Brecha MEP / Oficial serie (últimos 90 pts)
+    const byCasa = { oficial: [], bolsa: [] };
+    for (const r of rows) {
+      if (byCasa[r.casa]) byCasa[r.casa].push({ fecha: r.fecha, venta: +r.venta });
+    }
+    for (const k of Object.keys(byCasa)) byCasa[k].sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+    const oficial = byCasa.oficial.slice(-90);
+    const bolsa = byCasa.bolsa.slice(-90);
+    const dates = new Set([...oficial.map(x => x.fecha), ...bolsa.map(x => x.fecha)]);
+    const ofMap = Object.fromEntries(oficial.map(x => [x.fecha, x.venta]));
+    const boMap = Object.fromEntries(bolsa.map(x => [x.fecha, x.venta]));
+    const serie = [...dates].sort()
+      .map(d => {
+        const o = ofMap[d], b = boMap[d];
+        if (!o || !b) return null;
+        return ((b - o) / o) * 100;
+      })
+      .filter(x => x != null);
+    $('#dol-chart').innerHTML = serie.length > 2
+      ? lineChartHTML(serie, { label: 'BRECHA MEP / OFICIAL · ÚLTIMOS 90 DÍAS · %', valFmt: v => v.toFixed(1) + '%' })
+      : '<div class="empty-state">serie insuficiente</div>';
+  } catch (e) {
+    $('#dol-tbl').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
+
+// ─── Screen: PIX ──────────────────────────────────────────────
 async function screenPix(main) {
-  stubScreen(main, { tag: 'pix · ar → br', title: 'PIX', sub: 'Transferencias a Brasil vía billeteras locales.' });
+  main.innerHTML = pHd('pix · ar → br', 'PIX', 'Transferencias desde billeteras argentinas a cuentas brasileñas. Tasa BRL/ARS comprada (cuanto más alto mejor para el que manda plata).')
+    + `<div id="pix-tbl"><div class="loading-row"> cargando proveedores…</div></div>`;
+  try {
+    const raw = await fetchCached('/api/pix', 180_000);
+    const list = [];
+    for (const [id, prov] of Object.entries(raw)) {
+      if (!prov.isPix) continue;
+      const brlArs = (prov.quotes || []).find(q => q.symbol === 'BRLARS');
+      const brlUsdt = (prov.quotes || []).find(q => q.symbol === 'BRLUSDT');
+      const brlUsd = (prov.quotes || []).find(q => q.symbol === 'BRLUSD');
+      list.push({
+        id,
+        name: id.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        brlArs: brlArs?.buy ? +brlArs.buy : null,
+        brlUsdt: brlUsdt?.buy ? +brlUsdt.buy : null,
+        brlUsd: brlUsd?.buy ? +brlUsd.buy : null,
+        spread: brlUsdt?.spread_pct || brlUsd?.spread_pct || null,
+      });
+    }
+    list.sort((a, b) => (b.brlArs || 0) - (a.brlArs || 0));
+    $('#pix-tbl').innerHTML = list.length ? `<table class="t">
+      <thead><tr><th style="text-align:left">proveedor</th><th>brl/ars</th><th>brl/usdt</th><th>brl/usd</th><th>spread</th></tr></thead>
+      <tbody>${list.map((r, i) => `<tr>
+        <td><span class="${i===0?'hot':''}">${esc(r.name)}</span></td>
+        <td class="num ${i===0?'hot':''}">${r.brlArs != null ? '$' + fmt(r.brlArs, 2) : '—'}</td>
+        <td class="num dim">${r.brlUsdt != null ? r.brlUsdt.toFixed(4) : '—'}</td>
+        <td class="num dim">${r.brlUsd != null ? r.brlUsd.toFixed(4) : '—'}</td>
+        <td class="num dim">${r.spread != null ? r.spread.toFixed(2) + '%' : '—'}</td>
+      </tr>`).join('')}</tbody></table>` : `<div class="empty-state">sin proveedores</div>`;
+  } catch (e) {
+    $('#pix-tbl').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
+
+// ─── Screen: BCRA ─────────────────────────────────────────────
 async function screenBcra(main) {
-  stubScreen(main, { tag: 'bcra · variables', title: 'BCRA', sub: 'Reservas, base monetaria, tasas de política.' });
+  main.innerHTML = pHd('bcra · variables', 'BCRA', 'Variables monetarias y cambiarias oficiales del Banco Central de la República Argentina.')
+    + `<section class="s"><h2><span>variables</span><span class="line"></span><span class="count" id="bcra-count">…</span></h2><div id="bcra-tbl"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>divisas · cotizaciones destacadas</span><span class="line"></span></h2><div id="bcra-fx"><div class="loading-row"> cargando divisas…</div></div></section>`;
+  try {
+    const [vars, cambios] = await Promise.all([
+      fetchCached('/api/bcra', 300_000),
+      fetchCached('/api/bcra-cambiarias', 300_000).catch(() => ({ destacadas: [] })),
+    ]);
+    const list = (vars.data || []).slice(0, 25);
+    $('#bcra-count').textContent = list.length;
+    $('#bcra-tbl').innerHTML = list.length ? `<table class="t">
+      <thead><tr><th style="text-align:left">variable</th><th style="text-align:left">categoría</th><th>valor</th><th>anterior</th><th>var</th><th style="text-align:left">fecha</th></tr></thead>
+      <tbody>${list.map(r => {
+        const cur = +r.valor, prev = +r.valorAnterior;
+        const chg = (prev && !isNaN(prev) && prev !== 0) ? ((cur - prev) / Math.abs(prev)) * 100 : null;
+        const unidad = r.unidad ? ` <small class="dim">${esc(r.unidad)}</small>` : '';
+        return `<tr>
+          <td>${esc(r.nombre)}</td>
+          <td class="dim">${esc(r.categoria || '')}</td>
+          <td class="num hot">${fmt(cur, r.formato === 'porcentaje' ? 2 : 0)}${unidad}</td>
+          <td class="num dim">${prev != null ? fmt(prev, r.formato === 'porcentaje' ? 2 : 0) : '—'}</td>
+          <td class="num ${chg != null ? signClass(chg) : 'dim'}">${chg != null ? fmtPct(chg, 2) : '—'}</td>
+          <td class="dim">${esc(r.fecha || '')}</td>
+        </tr>`;
+      }).join('')}</tbody></table>` : `<div class="empty-state">sin datos</div>`;
+
+    const dst = [...(cambios.destacadas || []), ...(cambios.otras || []).slice(0, 10)];
+    $('#bcra-fx').innerHTML = dst.length ? `<table class="t">
+      <thead><tr><th style="text-align:left">moneda</th><th style="text-align:left">código</th><th>cotización</th><th>pase</th></tr></thead>
+      <tbody>${dst.map(r => `<tr>
+        <td>${esc(r.nombre)}</td>
+        <td class="dim">${esc(r.codigo)}</td>
+        <td class="num hot">${fmt(+r.cotizacion, 4)}</td>
+        <td class="num dim">${r.tipoPase ? fmt(+r.tipoPase, 4) : '—'}</td>
+      </tr>`).join('')}</tbody></table>` : `<div class="empty-state">sin divisas</div>`;
+  } catch (e) {
+    $('#bcra-tbl').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
+
+// ─── Screen: Mundial ──────────────────────────────────────────
 async function screenMundial(main) {
-  stubScreen(main, { tag: 'mundial · fifa 2026', title: 'Mundial', sub: 'Grupos, fixture y probabilidades de avance.' });
+  main.innerHTML = pHd('mundial · fifa 2026', 'Mundial 2026', 'Grupos de la Copa del Mundo FIFA 2026. Orden por puntos, luego diferencia de goles.')
+    + `<div id="mun-grid"><div class="loading-row"> cargando grupos…</div></div>`;
+  try {
+    const raw = await fetchCached('/api/mundial', 3600_000);
+    const standings = raw.standings || {};
+    const groups = Object.keys(standings).sort();
+    if (!groups.length) { $('#mun-grid').innerHTML = '<div class="empty-state">sin datos</div>'; return; }
+    const rows = groups.map(g => {
+      const teams = [...standings[g]].sort((a, b) => (b.points - a.points) || ((b.gf - b.ga) - (a.gf - a.ga)) || (b.gf - a.gf));
+      return `<section class="s"><h2><span>grupo ${esc(g)}</span><span class="line"></span></h2>
+        <table class="t">
+          <thead><tr><th style="text-align:left">#</th><th style="text-align:left">selección</th><th>pj</th><th>g</th><th>e</th><th>p</th><th>gf</th><th>gc</th><th>pts</th></tr></thead>
+          <tbody>${teams.map((t, i) => `<tr>
+            <td class="dim">${i + 1}</td>
+            <td><span class="${i<2?'hot':''}">${esc(t.team)}</span></td>
+            <td class="num dim">${t.played}</td>
+            <td class="num">${t.won}</td>
+            <td class="num">${t.draw}</td>
+            <td class="num">${t.lost}</td>
+            <td class="num">${t.gf}</td>
+            <td class="num">${t.ga}</td>
+            <td class="num hot">${t.points}</td>
+          </tr>`).join('')}</tbody>
+        </table>
+      </section>`;
+    });
+    // 2-col grid
+    const cols = [[], []];
+    rows.forEach((r, i) => cols[i % 2].push(r));
+    $('#mun-grid').innerHTML = `<div class="cols two"><div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>`;
+  } catch (e) {
+    $('#mun-grid').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
 
 const SCREENS = {
