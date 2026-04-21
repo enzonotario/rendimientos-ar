@@ -2136,9 +2136,77 @@ async function screenBcra(main) {
 }
 
 // ─── Screen: Mundial ──────────────────────────────────────────
+const MUNDIAL_START = new Date(2026, 5, 11); // 11 jun 2026 (inicio oficial)
+
+function renderMundialCountdown() {
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const addMonths = (d, m) => {
+    const n = new Date(d);
+    const orig = n.getDate();
+    n.setDate(1);
+    n.setMonth(n.getMonth() + m);
+    n.setDate(Math.min(orig, new Date(n.getFullYear(), n.getMonth() + 1, 0).getDate()));
+    return n;
+  };
+  const unit = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+
+  const today = startOfDay(new Date());
+  const target = startOfDay(MUNDIAL_START);
+  const msDay = 86400000;
+  const totalDays = Math.max(0, Math.ceil((target - today) / msDay));
+  let months = 0;
+  while (addMonths(today, months + 1) <= target) months++;
+  const anchor = addMonths(today, months);
+  const days = Math.max(0, Math.ceil((target - anchor) / msDay));
+
+  let summary;
+  if (totalDays === 0) summary = 'HOY · ARRANCA EL MUNDIAL';
+  else {
+    const parts = [];
+    if (months > 0) parts.push(unit(months, 'mes', 'meses'));
+    if (days > 0) parts.push(unit(days, 'día', 'días'));
+    summary = 'FALTAN ' + (parts.join(' y ') || unit(totalDays, 'día', 'días')).toUpperCase();
+  }
+
+  return `<div class="tty-countdown">
+    <div class="tty-countdown-head">
+      <div>
+        <div class="tty-countdown-kicker">MUNDIAL 2026 · CUENTA REGRESIVA</div>
+        <div class="tty-countdown-summary">${esc(summary)}</div>
+        <div class="tty-countdown-date">inicio · 11 de junio de 2026 · méxico / usa / canadá</div>
+      </div>
+      <div class="tty-countdown-stats">
+        <div class="tty-countdown-stat">
+          <div class="tty-countdown-value">${String(months).padStart(2, '0')}</div>
+          <div class="tty-countdown-label">${months === 1 ? 'mes' : 'meses'}</div>
+        </div>
+        <div class="tty-countdown-stat">
+          <div class="tty-countdown-value">${String(days).padStart(2, '0')}</div>
+          <div class="tty-countdown-label">${days === 1 ? 'día' : 'días'}</div>
+        </div>
+        <div class="tty-countdown-stat">
+          <div class="tty-countdown-value">${totalDays}</div>
+          <div class="tty-countdown-label">días totales</div>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
 async function screenMundial(main) {
-  main.innerHTML = pHd('mundial · fifa 2026', 'Mundial 2026', 'Grupos de la Copa del Mundo FIFA 2026. Orden por puntos, luego diferencia de goles.')
+  main.innerHTML = pHd('mundial · fifa 2026', 'Mundial 2026', 'Cuenta regresiva al inicio del Mundial 2026 y grupos oficiales de la Copa del Mundo FIFA. Orden por puntos, luego diferencia de goles.')
+    + renderMundialCountdown()
     + `<div id="mun-grid"><div class="loading-row"> cargando grupos…</div></div>`;
+  // Re-render countdown every hour so it stays accurate on long sessions
+  if (!window._mundialCdTimer) {
+    window._mundialCdTimer = setInterval(() => {
+      if (location.hash.startsWith('#mundial') || STATE.section.main === 'mundial') {
+        const m = $('#main');
+        const cd = m && m.querySelector('.tty-countdown');
+        if (cd) cd.outerHTML = renderMundialCountdown();
+      }
+    }, 60 * 60 * 1000);
+  }
   try {
     const raw = await fetchCached('/api/mundial', 3600_000);
     const standings = raw.standings || {};
