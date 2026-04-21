@@ -2292,28 +2292,28 @@ const REMESAS = [
   },
 ];
 
-// Brand backgrounds for providers without logo file
-const REMESAS_BG = {
-  Cocos: '#0ab386',
-  Wallbit: '#0d2c5e',
-  Grabr: '#ff3e6c',
-  Lemon: '#00c897',
-  Takenos: '#1e2430',
-  Payoneer: '#ff4b26',
-  Arq: '#1a1a6c',
-  Astropay: '#1e1e4a',
-  Airtm: '#00aef0',
-  Wise: '#9fe870',
+// Logos de cada proveedor de remesas. Fuentes:
+// 1. Archivos existentes en /logos/exchanges/ (wallbit, lemon) de la sección dolar vieja
+// 2. Cocos usa ENTITY_LOGOS (base64 inline) de la sección ARS billeteras
+// 3. Los 7 restantes son SVGs base64 inline con color de marca + monograma (estilo editorial)
+const REMESAS_LOGO = {
+  Cocos: undefined, // lookupLogoURL → ENTITY_LOGOS['Cocos']
+  Wallbit: '/logos/exchanges/wallbit.svg',
+  Lemon: '/logos/exchanges/lemon.svg',
+  'Grabr Fi': 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjZmYzZTZjIi8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjExIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiA+R1I8L3RleHQ+PC9zdmc+',
+  Takenos: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjMGIxNDIwIi8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjOWFkNGZmIiA+VDwvdGV4dD48L3N2Zz4=',
+  Payoneer: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjZmY0YjI2Ii8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiA+UDwvdGV4dD48L3N2Zz4=',
+  Arq: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjNmUzY2U3Ii8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjgiIGZvbnQtd2VpZ2h0PSI3MDAiIGZpbGw9IiNmZmYiID5BUlE8L3RleHQ+PC9zdmc+',
+  Astropay: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjZDRmZjNhIi8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjEyIiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMGYxNTMwIiA+QVA8L3RleHQ+PC9zdmc+',
+  Airtm: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjMDBhZWYwIi8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjZmZmIiA+QTwvdGV4dD48L3N2Zz4=',
+  Wise: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyOCAyOCI+PHJlY3Qgd2lkdGg9IjI4IiBoZWlnaHQ9IjI4IiBmaWxsPSIjOWZlODcwIi8+PHRleHQgeD0iMTQiIHk9IjE4IiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0idWktc2Fucy1zZXJpZixzeXN0ZW0tdWksLWFwcGxlLXN5c3RlbSxzYW5zLXNlcmlmIiBmb250LXNpemU9IjE0IiBmb250LXdlaWdodD0iNzAwIiBmaWxsPSIjMTYzMzAwIiA+VzwvdGV4dD48L3N2Zz4=',
 };
 
 function remesaLogoHTML(name, sm = false) {
-  // Reuse ENTITY_LOGOS for Cocos; otherwise letters on brand bg.
-  const src = lookupLogoURL(name);
+  const src = REMESAS_LOGO[name] !== undefined ? REMESAS_LOGO[name] : lookupLogoURL(name);
   const cls = 'logo' + (sm ? ' sm' : '');
   const init = esc(initials(name));
   if (src) return `<span class="${cls}" data-initials="${init}"><img src="${esc(src)}" alt="${esc(name)}" onerror="this.remove(); this.parentNode.textContent=this.parentNode.dataset.initials||'·'"></span>`;
-  const bg = REMESAS_BG[name];
-  if (bg) return `<span class="${cls}" style="background:${esc(bg)};color:#fff;border-color:${esc(bg)}">${init}</span>`;
   return `<span class="${cls}">${init}</span>`;
 }
 
