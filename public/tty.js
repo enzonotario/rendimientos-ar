@@ -904,10 +904,9 @@ ARS_SUBS.billeteras = async function(main) {
       $('#bil-bars').innerHTML = '<div class="empty-state">sin billeteras activas</div>';
     }
 
-    // FCIs money market — tight filter: cap at 40% TNA + exclude any non-MM category names
-    const NOT_MM = /renta\s+(mixta|variable|balanceada|fija\s+(especializada|plus|estrateg))|balanceado|dolar|d[oó]lar\s+mep|retorno\s+absoluto|global|emergente|acciones|ahorro\s+plus/i;
+    // FCIs money market — filter by backend category tag (plus sanity cap)
     const fcis = (fciRes.data || [])
-      .filter(f => f.nombre && f.tna > 0 && f.tna < 40 && !NOT_MM.test(f.nombre))
+      .filter(f => f.nombre && f.tna > 0 && f.tna < 40 && (f.category === 'mm' || !f.category))
       .sort((a, b) => b.tna - a.tna);
     // dedupe by base name (strip " - Clase X")
     const seen = new Set();
@@ -1153,9 +1152,8 @@ ARS_SUBS.comparador = async function(main) {
       if (g.activo === false) continue;
       unified.push({ name: g.nombre, type: g.tipo || 'Billetera', tna: +g.tna || 0, tag: g.limite || '' });
     }
-    // Filter out non-MM noise (MM rates live in 18-35% band; cap at 40%)
-    const NOT_MM = /renta\s+(mixta|variable|balanceada|fija\s+(especializada|plus|estrateg))|balanceado|dolar|d[oó]lar\s+mep|retorno\s+absoluto|global|emergente|acciones|ahorro\s+plus/i;
-    const fcis = (fciRes.data || []).filter(f => f.nombre && f.tna > 0 && f.tna < 40 && !NOT_MM.test(f.nombre)).sort((a, b) => b.tna - a.tna).slice(0, 10);
+    // Comparador MM only (backend tag + cap)
+    const fcis = (fciRes.data || []).filter(f => f.nombre && f.tna > 0 && f.tna < 40 && (f.category === 'mm' || !f.category)).sort((a, b) => b.tna - a.tna).slice(0, 10);
     for (const f of fcis) {
       unified.push({ name: f.nombre.replace(/ - Clase [A-Z]$/, ''), type: 'FCI MM', tna: +f.tna, tag: '' });
     }

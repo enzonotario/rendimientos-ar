@@ -11,7 +11,11 @@ export default async function handler(req, res) {
       fetchJSON('https://api.argentinadatos.com/v1/finanzas/fci/rentaMixta/penultimo'),
     ]);
 
-    const allLatest = [...filterValid(mmLatest), ...filterValid(rmLatest)];
+    // Tag each fund with its source category so clients can filter cleanly
+    const tagged = [
+      ...filterValid(mmLatest).map(f => ({ ...f, __cat: 'mm' })),
+      ...filterValid(rmLatest).map(f => ({ ...f, __cat: 'rm' })),
+    ];
     const allPrevious = [...filterValid(mmPrevious), ...filterValid(rmPrevious)];
 
     const prevMap = {};
@@ -20,7 +24,7 @@ export default async function handler(req, res) {
     }
 
     const results = [];
-    for (const fund of allLatest) {
+    for (const fund of tagged) {
       const prev = prevMap[fund.fondo];
       if (!prev || !prev.vcp || !fund.vcp) continue;
 
@@ -32,6 +36,7 @@ export default async function handler(req, res) {
 
       results.push({
         nombre: fund.fondo,
+        category: fund.__cat,
         tna: Math.round(tna * 100) / 100,
         patrimonio: fund.patrimonio,
         fechaDesde: prev.fecha,
