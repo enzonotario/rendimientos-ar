@@ -20,7 +20,7 @@ const LS = {
 // Nav structure — must match README order
 const NAV = [
   { k: 'mundo',       label: 'mundo',       key: 'm' },
-  { k: 'hotusa',      label: 'hot usa',     key: 'u' },
+  { k: 'earnings',    label: 'earnings',    key: 'e', href: '/earnings' },
   { k: 'cedears',     label: 'cedears',     key: 'c' },
   { k: 'ars',         label: 'ars',         key: 'a',
     subs: [
@@ -527,9 +527,13 @@ function renderTopBar() {
 function renderNav() {
   const nav = $('#tty-nav-primary');
   if (!nav) return;
-  nav.innerHTML = NAV.map(item => `
-    <button data-nav="${item.k}" class="${STATE.section.main === item.k ? 'on' : ''}">${esc(item.label)}</button>
-  `).join('');
+  nav.innerHTML = NAV.map(item => {
+    if (item.href) {
+      // External page link (e.g. /earnings, /cedears in other pages)
+      return `<a href="${esc(item.href)}" class="tty-nav-ext"><button>${esc(item.label)}</button></a>`;
+    }
+    return `<button data-nav="${esc(item.k)}" class="${STATE.section.main === item.k ? 'on' : ''}">${esc(item.label)}</button>`;
+  }).join('');
   $$('button[data-nav]', nav).forEach(b => {
     b.addEventListener('click', () => goTo(b.getAttribute('data-nav'), null));
   });
@@ -612,7 +616,16 @@ const MUNDO_CATEGORIES = ['Indices', 'Rates', 'FX', 'Commodities', 'Crypto'];
 
 async function screenMundo(main) {
   main.innerHTML = pHd('mundo · monitor global', 'Monitor Global', 'Principales indicadores del mercado mundial, separados por categoría. Click en una fila para verla grande a la derecha.')
-    + `<div class="cols lg-chart"><div id="mundo-tbl"></div><div id="mundo-charts"></div></div>`;
+    + `<div class="cols lg-chart"><div id="mundo-tbl"></div><div id="mundo-charts"></div></div>`
+    + `<section class="s" id="mundo-hot-section">
+        <h2><span>hot usa · us stocks con mayor movimiento</span><span class="line"></span><span class="count" id="hot-count">…</span></h2>
+        <div id="hot-grid"><div class="loading-row"> datos de mercado…</div></div>
+      </section>
+      <section class="s" id="mundo-earn-section">
+        <h2><span>earnings · próximos reportes</span><span class="line"></span><span class="count" id="earn-count">…</span></h2>
+        <div id="earn-timeline"><div class="loading-row"> próximos reportes…</div></div>
+        <p style="margin-top:12px"><a href="/earnings" style="color:var(--hot);text-decoration:none;font-size:12px;text-transform:uppercase;letter-spacing:0.08em">ver calendario completo →</a></p>
+      </section>`;
   $('#mundo-tbl').innerHTML = '<div class="loading-row"> datos globales…</div>';
   let res;
   try { res = await fetchCached('/api/mundo', 60_000); } catch (e) {
@@ -702,6 +715,78 @@ async function screenMundo(main) {
   }
 
   render();
+
+  // Kick off hot movers + earnings timeline for the bottom sections
+  loadHotMoversInto($('#hot-grid'), $('#hot-count'));
+  loadEarningsTimelineInto($('#earn-timeline'), $('#earn-count'));
+}
+
+// Hot movers grid — shared between Mundo bottom section and (historically) Hot USA
+async function loadHotMoversInto(grid, countEl) {
+  if (!grid) return;
+  try {
+    const raw = await fetchCached('/api/hot-movers', 120_000);
+    const list = (raw.data || []).slice(0, 20);
+    if (countEl) countEl.textContent = list.length;
+    if (!list.length) { grid.innerHTML = '<div class="empty-state">sin datos</div>'; return; }
+    grid.innerHTML = `<div class="hot-grid">${list.map(r => {
+      const isUp = r.change >= 0;
+      return `<div class="hot-card">
+        ${logoImgHTML(SVVY_LOGO(r.symbol), r.symbol)}
+        <div class="hot-info">
+          <div class="hot-symbol">${esc(r.symbol)}</div>
+          <div class="hot-name dim">${esc(r.name)}</div>
+        </div>
+        <div class="hot-right">
+          <div class="hot-price">$${fmt(r.price, 2)}</div>
+          <div class="hot-change ${isUp ? 'up' : 'down'}">${arrow(r.change)} ${fmtPct(r.change, 2)}</div>
+        </div>
+      </div>`;
+    }).join('')}</div>`;
+  } catch (e) {
+    grid.innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
+}
+
+// Earnings timeline — next 7 days, top 5 per day
+async function loadEarningsTimelineInto(el, countEl) {
+  if (!el) return;
+  try {
+    const today = new Date();
+    const end = new Date(today.getTime() + 14 * 86400000);
+    const fd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const raw = await fetchCached(`/api/earnings?start=${fd(today)}&end=${fd(end)}`, 300_000);
+    const data = typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
+    const todayStr = fd(today);
+    const days = Object.keys(data).filter(d => d >= todayStr).sort();
+    const parsed = {};
+    for (const day of days) {
+      const items = (data[day] || []).filter(e => e.isDateConfirmed && e.marketCap > 0).sort((a, b) => b.marketCap - a.marketCap).slice(0, 5);
+      if (items.length) parsed[day] = items;
+    }
+    const activeDays = Object.keys(parsed).sort().slice(0, 7);
+    if (countEl) countEl.textContent = activeDays.reduce((s, d) => s + parsed[d].length, 0);
+    if (!activeDays.length) { el.innerHTML = '<div class="empty-state">sin reportes próximos</div>'; return; }
+    el.innerHTML = `<div class="earn-timeline">${activeDays.map(day => {
+      const d = new Date(day + 'T00:00:00');
+      const DOW = ['dom','lun','mar','mié','jue','vie','sáb'];
+      const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      const head = `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2,'0')} ${MES[d.getMonth()]}`;
+      return `<div class="earn-day">
+        <div class="earn-day-head">${esc(head.toUpperCase())}</div>
+        <div class="earn-day-items">${parsed[day].map(e => {
+          const lbl = e.earningsTime === 'bmo' ? 'BMO' : e.earningsTime === 'amc' ? 'AMC' : '';
+          return `<div class="earn-item">
+            ${logoImgHTML(SVVY_LOGO(e.symbol), e.symbol, true)}
+            <span class="earn-sym">${esc(e.symbol)}</span>
+            <span class="earn-time dim">${esc(lbl)}</span>
+          </div>`;
+        }).join('')}</div>
+      </div>`;
+    }).join('')}</div>`;
+  } catch (e) {
+    el.innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+  }
 }
 
 // Normalize /api/mundo response → {Indices, Rates, FX, Commodities, Crypto}
@@ -773,78 +858,8 @@ function stubScreen(main, { tag, title, sub, message = 'En construcción — pr�
   main.innerHTML = pHd(tag, title, sub) + `<div class="empty-state">${esc(message)}</div>`;
 }
 
-// ─── Screen: Hot USA — movers + earnings calendar ─────────────
+// Logos de US stocks via svvytrdr CDN (compartido por Mundo, CEDEARs y /earnings)
 const SVVY_LOGO = (sym) => `https://static.svvytrdr.com/logos/${encodeURIComponent(sym)}.webp`;
-
-async function screenHotUSA(main) {
-  main.innerHTML = pHd('hot usa · movers + earnings', 'Hot USA', 'Acciones USA con mayor movimiento del día y calendario de próximos reportes de resultados.')
-    + `<section class="s"><h2><span>movers · us stocks con mayor movimiento</span><span class="line"></span><span class="count" id="hot-count">…</span></h2><div id="hot-grid"><div class="loading-row"> datos de mercado…</div></div></section>`
-    + `<section class="s"><h2><span>earnings · próximos reportes</span><span class="line"></span><span class="count" id="earn-count">…</span></h2><div id="earn-timeline"><div class="loading-row"> próximos reportes…</div></div>
-        <p style="margin-top:12px"><a href="/earnings" style="color:var(--hot);text-decoration:none;font-size:12px;text-transform:uppercase;letter-spacing:0.08em">ver calendario completo →</a></p>
-      </section>`;
-  // Movers
-  try {
-    const raw = await fetchCached('/api/hot-movers', 120_000);
-    const list = (raw.data || []).slice(0, 20);
-    $('#hot-count').textContent = list.length;
-    if (!list.length) { $('#hot-grid').innerHTML = '<div class="empty-state">sin datos</div>'; }
-    else {
-      $('#hot-grid').innerHTML = `<div class="hot-grid">${list.map(r => {
-        const isUp = r.change >= 0;
-        return `<div class="hot-card">
-          ${logoImgHTML(SVVY_LOGO(r.symbol), r.symbol)}
-          <div class="hot-info">
-            <div class="hot-symbol">${esc(r.symbol)}</div>
-            <div class="hot-name dim">${esc(r.name)}</div>
-          </div>
-          <div class="hot-right">
-            <div class="hot-price">$${fmt(r.price, 2)}</div>
-            <div class="hot-change ${isUp ? 'up' : 'down'}">${arrow(r.change)} ${fmtPct(r.change, 2)}</div>
-          </div>
-        </div>`;
-      }).join('')}</div>`;
-    }
-  } catch (e) {
-    $('#hot-grid').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
-  }
-  // Earnings timeline — next 14 days, top 5 per active day, 7 days max
-  try {
-    const today = new Date();
-    const end = new Date(today.getTime() + 14 * 86400000);
-    const fd = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    const raw = await fetchCached(`/api/earnings?start=${fd(today)}&end=${fd(end)}`, 300_000);
-    const data = typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
-    const todayStr = fd(today);
-    const days = Object.keys(data).filter(d => d >= todayStr).sort();
-    const parsed = {};
-    for (const day of days) {
-      const items = (data[day] || []).filter(e => e.isDateConfirmed && e.marketCap > 0).sort((a, b) => b.marketCap - a.marketCap).slice(0, 5);
-      if (items.length) parsed[day] = items;
-    }
-    const activeDays = Object.keys(parsed).sort().slice(0, 7);
-    $('#earn-count').textContent = activeDays.reduce((s, d) => s + parsed[d].length, 0);
-    if (!activeDays.length) { $('#earn-timeline').innerHTML = '<div class="empty-state">sin reportes próximos</div>'; return; }
-    $('#earn-timeline').innerHTML = `<div class="earn-timeline">${activeDays.map(day => {
-      const d = new Date(day + 'T00:00:00');
-      const DOW = ['dom','lun','mar','mié','jue','vie','sáb'];
-      const MES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-      const head = `${DOW[d.getDay()]} ${String(d.getDate()).padStart(2,'0')} ${MES[d.getMonth()]}`;
-      return `<div class="earn-day">
-        <div class="earn-day-head">${esc(head.toUpperCase())}</div>
-        <div class="earn-day-items">${parsed[day].map(e => {
-          const lbl = e.earningsTime === 'bmo' ? 'BMO' : e.earningsTime === 'amc' ? 'AMC' : '';
-          return `<div class="earn-item">
-            ${logoImgHTML(SVVY_LOGO(e.symbol), e.symbol, true)}
-            <span class="earn-sym">${esc(e.symbol)}</span>
-            <span class="earn-time dim">${esc(lbl)}</span>
-          </div>`;
-        }).join('')}</div>
-      </div>`;
-    }).join('')}</div>`;
-  } catch (e) {
-    $('#earn-timeline').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
-  }
-}
 
 // ─── Screen: CEDEARs (MEP / CCL implícito, tabla completa) ────
 async function screenCedears(main) {
@@ -2083,7 +2098,6 @@ async function screenMundial(main) {
 
 const SCREENS = {
   mundo: screenMundo,
-  hotusa: screenHotUSA,
   cedears: screenCedears,
   ars: screenARS,
   bonos: screenBonos,
@@ -2097,7 +2111,8 @@ const SCREENS = {
 
 // ─── Keyboard ─────────────────────────────────────────────────
 let _gMode = false, _gTimer = null;
-const G_KEY = { m: 'mundo', u: 'hotusa', c: 'cedears', a: 'ars', b: 'bonos', o: 'ons', h: 'hipotecarios', d: 'dolar', p: 'pix', r: 'bcra', w: 'mundial' };
+const G_KEY = { m: 'mundo', c: 'cedears', a: 'ars', b: 'bonos', o: 'ons', h: 'hipotecarios', d: 'dolar', p: 'pix', r: 'bcra', w: 'mundial' };
+const G_EXT = { e: '/earnings' };
 
 function onKey(e) {
   // Ignore if user is typing in input/textarea
@@ -2113,8 +2128,11 @@ function onKey(e) {
 
   if (_gMode) {
     e.preventDefault();
-    const target = G_KEY[e.key.toLowerCase()];
+    const key = e.key.toLowerCase();
+    const target = G_KEY[key];
+    const ext = G_EXT[key];
     if (target) goTo(target, null);
+    else if (ext) location.href = ext;
     _gMode = false;
     clearTimeout(_gTimer);
     return;
@@ -2323,6 +2341,7 @@ function renderFooter() {
           <li><a href="#bonos">soberanos</a></li>
           <li><a href="#ons">ons</a></li>
           <li><a href="#cedears">cedears</a></li>
+          <li><a href="/earnings">earnings</a></li>
           <li><a href="#dolar">dólar</a></li>
         </ul>
       </div>
