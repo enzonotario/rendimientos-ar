@@ -711,12 +711,11 @@ async function screenMundo(main) {
         const sa = String(va || ''), sb = String(vb || '');
         return state.sort.dir === 'asc' ? sa.localeCompare(sb) : sb.localeCompare(sa);
       });
-      rows.push(`<tr class="cat"><td colspan="6">── ${cat.toLowerCase()} <span class="line">────────────────────────────────────────────────────</span></td></tr>`);
+      rows.push(`<tr class="cat"><td colspan="5">── ${cat.toLowerCase()} <span class="line">────────────────────────────────────────────────────</span></td></tr>`);
       for (const r of items) {
         const isSel = state.sel === r.sym;
         rows.push(`<tr class="clickable${isSel ? ' sel' : ''}" data-sym="${esc(r.sym)}">
-          <td><span class="hot">${esc(r.sym)}</span></td>
-          <td class="dim">${esc(r.name)}</td>
+          <td class="mundo-ins"><span class="hot">${esc(r.sym)}</span> <span class="dim ins-name">${esc(r.name)}</span></td>
           <td class="num">${r.pct ? fmtPctPlain(r.last, 2) : fmt(r.last, r.d)}</td>
           <td class="num ${signClass(r.chg)}">${arrow(r.chg)} ${fmtPct(r.chg, 2)}</td>
           <td class="num ${signClass(r.ytd)}">${fmtPct(r.ytd, 1)}</td>
@@ -727,8 +726,7 @@ async function screenMundo(main) {
     const arr = (k) => state.sort.k === k ? `<span class="arr">${state.sort.dir === 'asc' ? '↑' : '↓'}</span>` : '';
     return `<table class="t">
       <thead><tr>
-        <th data-col="sym" style="text-align:left">sym ${arr('sym')}</th>
-        <th data-col="name" style="text-align:left">instrumento</th>
+        <th data-col="sym" style="text-align:left">instrumento ${arr('sym')}</th>
         <th data-col="last">último ${arr('last')}</th>
         <th data-col="chg">chg ${arr('chg')}</th>
         <th data-col="ytd">ytd ${arr('ytd')}</th>

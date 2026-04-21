@@ -749,6 +749,9 @@ table.t td.cell-logo { padding-left: 0; }
   table.t tr.cat td .line { display: none; }
   /* Spark column narrower on mobile */
   .spark { width: 60px; }
+  /* Mundo combined ins cell: stack name under sym on mobile */
+  td.mundo-ins { white-space: normal; line-height: 1.25; }
+  td.mundo-ins .ins-name { display: block; font-size: 10px; margin-top: 2px; }
 
   /* Mundo charts first on mobile so users see the chart immediately */
   .cols.lg-chart { display: flex; flex-direction: column; gap: 16px; }
