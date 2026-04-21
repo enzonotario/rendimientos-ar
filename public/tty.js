@@ -2193,51 +2193,282 @@ function renderMundialCountdown() {
   </div>`;
 }
 
+// Mundial 2026 — static data (grupos + banderas + tags + partidos).
+// Compatible con /api/mundial: si la API trae standings updated, se mergea por nombre.
+const MUNDIAL_GROUPS = [
+  { letter: 'A', venue: 'Mexico', teams: [
+    { name: 'Mexico', flag: '🇲🇽', tag: 'sede', apiName: 'Mexico' },
+    { name: 'Corea del Sur', flag: '🇰🇷', apiName: 'South Korea' },
+    { name: 'Sudáfrica', flag: '🇿🇦', apiName: 'South Africa' },
+    { name: 'Playoff UEFA D', flag: '🇪🇺', tag: 'playoff' },
+  ], matches: [
+    { date: '11 Jun', t1: 'Mexico', t2: 'Sudáfrica', city: 'Mexico City' },
+    { date: '12 Jun', t1: 'Corea del Sur', t2: 'Playoff UEFA D', city: 'Guadalajara' },
+    { date: '16 Jun', t1: 'Mexico', t2: 'Corea del Sur', city: 'Mexico City' },
+    { date: '16 Jun', t1: 'Sudáfrica', t2: 'Playoff UEFA D', city: 'Guadalajara' },
+    { date: '20 Jun', t1: 'Sudáfrica', t2: 'Corea del Sur', city: 'Monterrey' },
+    { date: '20 Jun', t1: 'Playoff UEFA D', t2: 'Mexico', city: 'Mexico City' },
+  ]},
+  { letter: 'B', venue: 'Canada', teams: [
+    { name: 'Canada', flag: '🇨🇦', tag: 'sede', apiName: 'Canada' },
+    { name: 'Suiza', flag: '🇨🇭', apiName: 'Switzerland' },
+    { name: 'Qatar', flag: '🇶🇦', apiName: 'Qatar' },
+    { name: 'Playoff UEFA A', flag: '🇪🇺', tag: 'playoff' },
+  ], matches: [
+    { date: '12 Jun', t1: 'Canada', t2: 'Qatar', city: 'Vancouver' },
+    { date: '12 Jun', t1: 'Suiza', t2: 'Playoff UEFA A', city: 'Toronto' },
+    { date: '17 Jun', t1: 'Canada', t2: 'Suiza', city: 'Vancouver' },
+    { date: '17 Jun', t1: 'Qatar', t2: 'Playoff UEFA A', city: 'Toronto' },
+    { date: '21 Jun', t1: 'Qatar', t2: 'Suiza', city: 'Toronto' },
+    { date: '21 Jun', t1: 'Playoff UEFA A', t2: 'Canada', city: 'Vancouver' },
+  ]},
+  { letter: 'C', venue: 'USA West', teams: [
+    { name: 'Brasil', flag: '🇧🇷', apiName: 'Brazil' },
+    { name: 'Marruecos', flag: '🇲🇦', apiName: 'Morocco' },
+    { name: 'Escocia', flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿', apiName: 'Scotland' },
+    { name: 'Haiti', flag: '🇭🇹', apiName: 'Haiti' },
+  ], matches: [
+    { date: '13 Jun', t1: 'Brasil', t2: 'Marruecos', city: 'Los Angeles' },
+    { date: '13 Jun', t1: 'Haiti', t2: 'Escocia', city: 'San Francisco' },
+    { date: '17 Jun', t1: 'Brasil', t2: 'Haiti', city: 'Los Angeles' },
+    { date: '18 Jun', t1: 'Marruecos', t2: 'Escocia', city: 'San Francisco' },
+    { date: '22 Jun', t1: 'Escocia', t2: 'Brasil', city: 'Los Angeles' },
+    { date: '22 Jun', t1: 'Marruecos', t2: 'Haiti', city: 'San Francisco' },
+  ]},
+  { letter: 'D', venue: 'USA East', teams: [
+    { name: 'Estados Unidos', flag: '🇺🇸', tag: 'sede', apiName: 'United States' },
+    { name: 'Paraguay', flag: '🇵🇾', apiName: 'Paraguay' },
+    { name: 'Australia', flag: '🇦🇺', apiName: 'Australia' },
+    { name: 'Playoff UEFA C', flag: '🇪🇺', tag: 'playoff' },
+  ], matches: [
+    { date: '12 Jun', t1: 'Estados Unidos', t2: 'Australia', city: 'Philadelphia' },
+    { date: '13 Jun', t1: 'Paraguay', t2: 'Playoff UEFA C', city: 'Houston' },
+    { date: '17 Jun', t1: 'Estados Unidos', t2: 'Paraguay', city: 'New York/NJ' },
+    { date: '17 Jun', t1: 'Australia', t2: 'Playoff UEFA C', city: 'Houston' },
+    { date: '21 Jun', t1: 'Australia', t2: 'Paraguay', city: 'Houston' },
+    { date: '21 Jun', t1: 'Playoff UEFA C', t2: 'Estados Unidos', city: 'Philadelphia' },
+  ]},
+  { letter: 'E', venue: 'USA South', teams: [
+    { name: 'Alemania', flag: '🇩🇪', apiName: 'Germany' },
+    { name: 'Costa de Marfil', flag: '🇨🇮', apiName: "Côte d'Ivoire" },
+    { name: 'Ecuador', flag: '🇪🇨', apiName: 'Ecuador' },
+    { name: 'Curazao', flag: '🇨🇼', apiName: 'Curaçao' },
+  ], matches: [
+    { date: '13 Jun', t1: 'Alemania', t2: 'Costa de Marfil', city: 'Atlanta' },
+    { date: '14 Jun', t1: 'Ecuador', t2: 'Curazao', city: 'Miami' },
+    { date: '18 Jun', t1: 'Alemania', t2: 'Ecuador', city: 'Atlanta' },
+    { date: '18 Jun', t1: 'Costa de Marfil', t2: 'Curazao', city: 'Miami' },
+    { date: '22 Jun', t1: 'Curazao', t2: 'Alemania', city: 'Atlanta' },
+    { date: '22 Jun', t1: 'Costa de Marfil', t2: 'Ecuador', city: 'Miami' },
+  ]},
+  { letter: 'F', venue: 'USA', teams: [
+    { name: 'Países Bajos', flag: '🇳🇱', apiName: 'Netherlands' },
+    { name: 'Japón', flag: '🇯🇵', apiName: 'Japan' },
+    { name: 'Túnez', flag: '🇹🇳', apiName: 'Tunisia' },
+    { name: 'Playoff UEFA B', flag: '🇪🇺', tag: 'playoff' },
+  ], matches: [
+    { date: '14 Jun', t1: 'Países Bajos', t2: 'Playoff UEFA B', city: 'Boston' },
+    { date: '14 Jun', t1: 'Túnez', t2: 'Japón', city: 'Kansas City' },
+    { date: '18 Jun', t1: 'Países Bajos', t2: 'Túnez', city: 'Boston' },
+    { date: '19 Jun', t1: 'Japón', t2: 'Playoff UEFA B', city: 'Kansas City' },
+    { date: '23 Jun', t1: 'Japón', t2: 'Países Bajos', city: 'Kansas City' },
+    { date: '23 Jun', t1: 'Playoff UEFA B', t2: 'Túnez', city: 'Boston' },
+  ]},
+  { letter: 'G', venue: 'USA', teams: [
+    { name: 'Bélgica', flag: '🇧🇪', apiName: 'Belgium' },
+    { name: 'Egipto', flag: '🇪🇬', apiName: 'Egypt' },
+    { name: 'Irán', flag: '🇮🇷', apiName: 'Iran' },
+    { name: 'Nueva Zelanda', flag: '🇳🇿', apiName: 'New Zealand' },
+  ], matches: [
+    { date: '14 Jun', t1: 'Bélgica', t2: 'Egipto', city: 'Dallas' },
+    { date: '15 Jun', t1: 'Irán', t2: 'Nueva Zelanda', city: 'Seattle' },
+    { date: '19 Jun', t1: 'Bélgica', t2: 'Irán', city: 'Dallas' },
+    { date: '19 Jun', t1: 'Egipto', t2: 'Nueva Zelanda', city: 'Seattle' },
+    { date: '23 Jun', t1: 'Nueva Zelanda', t2: 'Bélgica', city: 'Dallas' },
+    { date: '23 Jun', t1: 'Egipto', t2: 'Irán', city: 'Seattle' },
+  ]},
+  { letter: 'H', venue: 'USA East', teams: [
+    { name: 'España', flag: '🇪🇸', apiName: 'Spain' },
+    { name: 'Uruguay', flag: '🇺🇾', apiName: 'Uruguay' },
+    { name: 'Arabia Saudita', flag: '🇸🇦', apiName: 'Saudi Arabia' },
+    { name: 'Cabo Verde', flag: '🇨🇻', apiName: 'Cape Verde' },
+  ], matches: [
+    { date: '15 Jun', t1: 'España', t2: 'Cabo Verde', city: 'New York/NJ' },
+    { date: '15 Jun', t1: 'Arabia Saudita', t2: 'Uruguay', city: 'Philadelphia' },
+    { date: '19 Jun', t1: 'España', t2: 'Arabia Saudita', city: 'New York/NJ' },
+    { date: '20 Jun', t1: 'Uruguay', t2: 'Cabo Verde', city: 'Philadelphia' },
+    { date: '24 Jun', t1: 'Uruguay', t2: 'España', city: 'New York/NJ' },
+    { date: '24 Jun', t1: 'Cabo Verde', t2: 'Arabia Saudita', city: 'Philadelphia' },
+  ]},
+  { letter: 'I', venue: 'USA/Mexico', teams: [
+    { name: 'Francia', flag: '🇫🇷', apiName: 'France' },
+    { name: 'Senegal', flag: '🇸🇳', apiName: 'Senegal' },
+    { name: 'Noruega', flag: '🇳🇴', apiName: 'Norway' },
+    { name: 'Interconf. Playoff 2', flag: '🇺🇳', tag: 'playoff' },
+  ], matches: [
+    { date: '15 Jun', t1: 'Francia', t2: 'Noruega', city: 'Los Angeles' },
+    { date: '16 Jun', t1: 'Senegal', t2: 'Interconf. Playoff 2', city: 'Monterrey' },
+    { date: '20 Jun', t1: 'Francia', t2: 'Senegal', city: 'Los Angeles' },
+    { date: '20 Jun', t1: 'Noruega', t2: 'Interconf. Playoff 2', city: 'Monterrey' },
+    { date: '24 Jun', t1: 'Interconf. Playoff 2', t2: 'Francia', city: 'Los Angeles' },
+    { date: '24 Jun', t1: 'Noruega', t2: 'Senegal', city: 'Monterrey' },
+  ]},
+  { letter: 'J', venue: 'USA South', teams: [
+    { name: 'Argentina', flag: '🇦🇷', apiName: 'Argentina' },
+    { name: 'Argelia', flag: '🇩🇿', apiName: 'Algeria' },
+    { name: 'Austria', flag: '🇦🇹', apiName: 'Austria' },
+    { name: 'Jordania', flag: '🇯🇴', apiName: 'Jordan' },
+  ], matches: [
+    { date: '16 Jun', t1: 'Argentina', t2: 'Austria', city: 'Miami' },
+    { date: '16 Jun', t1: 'Jordania', t2: 'Argelia', city: 'Atlanta' },
+    { date: '21 Jun', t1: 'Argentina', t2: 'Jordania', city: 'Miami' },
+    { date: '21 Jun', t1: 'Austria', t2: 'Argelia', city: 'Atlanta' },
+    { date: '25 Jun', t1: 'Argelia', t2: 'Argentina', city: 'Miami' },
+    { date: '25 Jun', t1: 'Austria', t2: 'Jordania', city: 'Atlanta' },
+  ]},
+  { letter: 'K', venue: 'USA', teams: [
+    { name: 'Portugal', flag: '🇵🇹', apiName: 'Portugal' },
+    { name: 'Colombia', flag: '🇨🇴', apiName: 'Colombia' },
+    { name: 'Uzbekistán', flag: '🇺🇿', apiName: 'Uzbekistan' },
+    { name: 'Interconf. Playoff 1', flag: '🇺🇳', tag: 'playoff' },
+  ], matches: [
+    { date: '14 Jun', t1: 'Portugal', t2: 'Colombia', city: 'Houston' },
+    { date: '15 Jun', t1: 'Uzbekistán', t2: 'Interconf. Playoff 1', city: 'Dallas' },
+    { date: '19 Jun', t1: 'Portugal', t2: 'Uzbekistán', city: 'Houston' },
+    { date: '19 Jun', t1: 'Colombia', t2: 'Interconf. Playoff 1', city: 'Dallas' },
+    { date: '23 Jun', t1: 'Interconf. Playoff 1', t2: 'Portugal', city: 'Houston' },
+    { date: '23 Jun', t1: 'Colombia', t2: 'Uzbekistán', city: 'Dallas' },
+  ]},
+  { letter: 'L', venue: 'USA', teams: [
+    { name: 'Inglaterra', flag: '🏴󠁧󠁢󠁥󠁮󠁧󠁿', apiName: 'England' },
+    { name: 'Croacia', flag: '🇭🇷', apiName: 'Croatia' },
+    { name: 'Ghana', flag: '🇬🇭', apiName: 'Ghana' },
+    { name: 'Panamá', flag: '🇵🇦', apiName: 'Panama' },
+  ], matches: [
+    { date: '15 Jun', t1: 'Inglaterra', t2: 'Croacia', city: 'Boston' },
+    { date: '16 Jun', t1: 'Ghana', t2: 'Panamá', city: 'Seattle' },
+    { date: '20 Jun', t1: 'Inglaterra', t2: 'Ghana', city: 'Boston' },
+    { date: '20 Jun', t1: 'Croacia', t2: 'Panamá', city: 'Seattle' },
+    { date: '24 Jun', t1: 'Panamá', t2: 'Inglaterra', city: 'Boston' },
+    { date: '24 Jun', t1: 'Croacia', t2: 'Ghana', city: 'Seattle' },
+  ]},
+];
+
+const MUNDIAL_KNOCKOUT = [
+  { name: 'Octavos de final', dates: '28 Jun - 2 Jul', matches: 16 },
+  { name: 'Cuartos de final', dates: '4 - 5 Jul', matches: 8 },
+  { name: 'Semifinales', dates: '8 - 9 Jul', matches: 4 },
+  { name: 'Tercer puesto', dates: '18 Jul', matches: 1 },
+  { name: 'Final', dates: '19 Jul · MetLife Stadium, New York/NJ', matches: 1 },
+];
+
 async function screenMundial(main) {
-  main.innerHTML = pHd('mundial · fifa 2026', 'Mundial 2026', 'Cuenta regresiva al inicio del Mundial 2026 y grupos oficiales de la Copa del Mundo FIFA. Orden por puntos, luego diferencia de goles.')
+  main.innerHTML = pHd('mundial · fifa 2026', 'Mundial 2026', 'Cuenta regresiva al inicio del Mundial 2026, grupos oficiales, partidos y sedes. Copa del Mundo FIFA.')
     + renderMundialCountdown()
     + `<div id="mun-grid"><div class="loading-row"> cargando grupos…</div></div>`;
-  // Re-render countdown every hour so it stays accurate on long sessions
+  // Re-render countdown every hour
   if (!window._mundialCdTimer) {
     window._mundialCdTimer = setInterval(() => {
-      if (location.hash.startsWith('#mundial') || STATE.section.main === 'mundial') {
-        const m = $('#main');
-        const cd = m && m.querySelector('.tty-countdown');
+      if (STATE.section.main === 'mundial') {
+        const cd = $('.tty-countdown', $('#main'));
         if (cd) cd.outerHTML = renderMundialCountdown();
       }
     }, 60 * 60 * 1000);
   }
+
+  // Pull live standings (optional); merge by apiName. If API fails or returns
+  // all zeros (tournament hasn't started), we still render everything from static data.
+  let apiStandings = {};
   try {
     const raw = await fetchCached('/api/mundial', 3600_000);
-    const standings = raw.standings || {};
-    const groups = Object.keys(standings).sort();
-    if (!groups.length) { $('#mun-grid').innerHTML = '<div class="empty-state">sin datos</div>'; return; }
-    const rows = groups.map(g => {
-      const teams = [...standings[g]].sort((a, b) => (b.points - a.points) || ((b.gf - b.ga) - (a.gf - a.ga)) || (b.gf - a.gf));
-      return `<section class="s"><h2><span>grupo ${esc(g)}</span><span class="line"></span></h2>
-        <table class="t">
-          <thead><tr><th style="text-align:left">#</th><th style="text-align:left">selección</th><th>pj</th><th>g</th><th>e</th><th>p</th><th>gf</th><th>gc</th><th>pts</th></tr></thead>
-          <tbody>${teams.map((t, i) => `<tr>
-            <td class="dim">${i + 1}</td>
-            <td><span class="${i<2?'hot':''}">${esc(t.team)}</span></td>
-            <td class="num dim">${t.played}</td>
-            <td class="num">${t.won}</td>
-            <td class="num">${t.draw}</td>
-            <td class="num">${t.lost}</td>
-            <td class="num">${t.gf}</td>
-            <td class="num">${t.ga}</td>
-            <td class="num hot">${t.points}</td>
-          </tr>`).join('')}</tbody>
-        </table>
-      </section>`;
+    apiStandings = raw.standings || {};
+  } catch (e) { /* ignore — static data is enough */ }
+
+  const cards = MUNDIAL_GROUPS.map(g => {
+    // Merge API stats into each team
+    const apiTeams = (apiStandings[g.letter] || []).reduce((acc, t) => { acc[t.team] = t; return acc; }, {});
+    const teams = g.teams.map(t => {
+      const stats = t.apiName ? apiTeams[t.apiName] : null;
+      return {
+        ...t,
+        played: stats?.played ?? 0,
+        won: stats?.won ?? 0,
+        draw: stats?.draw ?? 0,
+        lost: stats?.lost ?? 0,
+        gf: stats?.gf ?? 0,
+        ga: stats?.ga ?? 0,
+        points: stats?.points ?? 0,
+      };
     });
-    // 2-col grid
-    const cols = [[], []];
-    rows.forEach((r, i) => cols[i % 2].push(r));
-    $('#mun-grid').innerHTML = `<div class="cols two"><div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>`;
-  } catch (e) {
-    $('#mun-grid').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
-  }
+    // Sort by points desc, then GD, then GF
+    teams.sort((a, b) => (b.points - a.points) || ((b.gf - b.ga) - (a.gf - a.ga)) || (b.gf - a.gf));
+
+    const teamRows = teams.map((t, i) => {
+      const tag = t.tag === 'sede' ? '<span class="tag" style="background:var(--bg-2);color:var(--hot);border-color:var(--hot);margin-left:6px">sede</span>' :
+        t.tag === 'playoff' ? '<span class="tag" style="margin-left:6px">playoff</span>' : '';
+      return `<tr>
+        <td class="dim">${i + 1}</td>
+        <td><span style="font-size:16px;margin-right:6px">${t.flag}</span><span class="${i < 2 ? 'hot' : ''}">${esc(t.name)}</span>${tag}</td>
+        <td class="num dim">${t.played}</td>
+        <td class="num">${t.won}</td>
+        <td class="num">${t.draw}</td>
+        <td class="num">${t.lost}</td>
+        <td class="num">${t.gf}</td>
+        <td class="num">${t.ga}</td>
+        <td class="num hot">${t.points}</td>
+      </tr>`;
+    }).join('');
+
+    const matchRows = g.matches.map(m => `<tr>
+      <td class="dim" style="white-space:nowrap">${esc(m.date)}</td>
+      <td><span>${esc(m.t1)}</span> <span class="dim">vs</span> <span>${esc(m.t2)}</span></td>
+      <td class="dim" style="text-align:right">${esc(m.city)}</td>
+    </tr>`).join('');
+
+    return `<section class="s mundial-group">
+      <h2>
+        <span><span class="hot">grupo ${esc(g.letter)}</span> <span class="dim">· ${esc(g.venue)}</span></span>
+        <span class="line"></span>
+      </h2>
+      <table class="t">
+        <thead><tr>
+          <th style="text-align:left">#</th>
+          <th style="text-align:left">selección</th>
+          <th>pj</th><th>g</th><th>e</th><th>p</th><th>gf</th><th>gc</th><th>pts</th>
+        </tr></thead>
+        <tbody>${teamRows}</tbody>
+      </table>
+      <div class="mundial-matches">
+        <div class="mundial-matches-head">PARTIDOS</div>
+        <table class="t">
+          <tbody>${matchRows}</tbody>
+        </table>
+      </div>
+    </section>`;
+  });
+
+  // Render in 2-col grid
+  const cols = [[], []];
+  cards.forEach((c, i) => cols[i % 2].push(c));
+
+  // Eliminatorias at the end
+  const knockout = `<section class="s" style="margin-top:8px">
+    <h2><span>eliminatorias</span><span class="line"></span></h2>
+    <table class="t">
+      <thead><tr>
+        <th style="text-align:left">ronda</th>
+        <th style="text-align:left">fechas</th>
+        <th>partidos</th>
+      </tr></thead>
+      <tbody>${MUNDIAL_KNOCKOUT.map(k => `<tr>
+        <td class="${/final\s*$/.test(k.name) ? 'hot' : ''}">${esc(k.name)}</td>
+        <td class="dim">${esc(k.dates)}</td>
+        <td class="num">${k.matches}</td>
+      </tr>`).join('')}</tbody>
+    </table>
+  </section>`;
+
+  $('#mun-grid').innerHTML = `<div class="cols two"><div>${cols[0].join('')}</div><div>${cols[1].join('')}</div></div>${knockout}`;
 }
 
 const SCREENS = {

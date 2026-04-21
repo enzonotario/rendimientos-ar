@@ -737,6 +737,27 @@ table.t td.cell-logo { padding-left: 0; }
 [data-density="comfortable"] table.t td { padding: 10px 12px; }
 [data-density="comfortable"] .phd { padding: 36px 0 24px; }
 
+/* Mundial group card tweaks */
+.mundial-group {
+  padding-bottom: 14px !important;
+  border-bottom: 1px dashed var(--rule-hi);
+}
+.mundial-matches {
+  margin-top: 14px;
+}
+.mundial-matches-head {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--fg-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  padding: 8px 0 2px;
+  border-top: 1px dashed var(--rule);
+}
+.mundial-matches table.t { margin-top: 0; }
+.mundial-matches table.t td { padding: 5px 8px; font-size: 12px; }
+.mundial-matches table.t td:first-child { padding-left: 0; width: 56px; }
+
 /* Countdown card (Mundial 2026) */
 .tty-countdown {
   border: 1px solid var(--rule-hi);
