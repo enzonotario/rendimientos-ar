@@ -745,6 +745,14 @@ table.t td.cell-logo { padding-left: 0; }
   table.t { font-size: 12px; }
   table.t th, table.t td { padding: 6px 8px; }
   table.t th:first-child, table.t td:first-child { padding-left: 0; }
+  /* Category rows: hide the decorative long dashes that blow up mobile width */
+  table.t tr.cat td .line { display: none; }
+  /* Spark column narrower on mobile */
+  .spark { width: 60px; }
+
+  /* Mundo charts first on mobile so users see the chart immediately */
+  .cols.lg-chart { display: flex; flex-direction: column; gap: 16px; }
+  #mundo-charts { order: -1; }
 
   /* Top bar: brand scrolls over clock if tight; let meta wrap */
   .top .row1 { flex-wrap: wrap; row-gap: 4px; }
