@@ -806,6 +806,14 @@ table.t td.cell-logo { padding-left: 0; }
   .dol-seg button { padding: 3px 8px; font-size: 10px; }
   .dol-24x7 { font-size: 10px; }
 
+  /* Cuotas calculator: comfortable on mobile */
+  .cuotas-grid { grid-template-columns: 1fr; gap: 10px; }
+  .cq-field > input { font-size: 14px; padding: 8px 10px; }
+  .cq-big { padding: 14px 14px; }
+  .cq-big-val { font-size: 26px; }
+  .cq-stats { grid-template-columns: 1fr 1fr; }
+  .cq-stat .val { font-size: 15px; }
+
   /* Best cards stack */
   .dol-best-row { gap: 8px; }
   .dol-best-card { padding: 10px 12px; }
@@ -1226,6 +1234,116 @@ table.t td.cell-logo { padding-left: 0; }
   cursor: pointer;
 }
 .dol-24x7 input { accent-color: var(--fg); }
+
+/* ─── Cuotas vs Contado (calculadora tipo infleta) ─────────── */
+.cuotas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 14px;
+  margin: 10px 0 12px;
+}
+.cq-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.cq-field > span {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+}
+.cq-field > input {
+  background: var(--bg-1);
+  border: 1px solid var(--rule-hi);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 15px;
+  padding: 9px 12px;
+  outline: 0;
+  font-variant-numeric: tabular-nums;
+}
+.cq-field > input:focus { border-color: var(--hot); }
+.cq-presets {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0;
+  flex-wrap: wrap;
+}
+.cq-presets-lbl {
+  font-size: 10px;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.cq-verdict { margin: 10px 0 18px; }
+.cq-big {
+  padding: 18px 20px;
+  border: 1px solid var(--rule-hi);
+  border-left-width: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--bg-1);
+}
+.cq-big.up { border-left-color: var(--up); }
+.cq-big.down { border-left-color: var(--down); }
+.cq-big-lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--fg-dim);
+}
+.cq-big-val {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+.cq-big.up .cq-big-val { color: var(--up); }
+.cq-big.down .cq-big-val { color: var(--down); }
+.cq-big-sub {
+  font-size: 12px;
+  color: var(--fg-dim);
+}
+.cq-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1px;
+  background: var(--rule-hi);
+  border: 1px solid var(--rule-hi);
+}
+.cq-stat {
+  background: var(--bg);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cq-stat .lbl {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+}
+.cq-stat .val {
+  font-size: 17px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+details.cq-flow {
+  margin-top: 14px;
+}
+details.cq-flow summary {
+  cursor: pointer;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--fg-dim);
+  padding: 6px 0;
+}
+details.cq-flow summary:hover { color: var(--hot); }
+details.cq-flow[open] summary { color: var(--fg); }
 
 /* Search input (CEDEARs) */
 .ced-search {

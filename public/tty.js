@@ -23,6 +23,7 @@ const NAV = [
   { k: 'earnings',    label: 'earnings',    key: 'e', href: '/earnings' },
   { k: 'cedears',     label: 'cedears',     key: 'c' },
   { k: 'remesas',     label: 'remesas',     key: 's' },
+  { k: 'cuotas',      label: 'cuotas',      key: 'q' },
   { k: 'ars',         label: 'ars',         key: 'a',
     subs: [
       { k: 'billeteras',       label: 'billeteras' },
@@ -2645,6 +2646,215 @@ const MUNDIAL_KNOCKOUT = [
   { name: 'Final', dates: '19 Jul · MetLife Stadium, New York/NJ', matches: 1 },
 ];
 
+// ─── Screen: Cuotas vs Contado (infleta-style) ────────────────
+// Compara pagar contado vs financiar en cuotas descontando por inflación.
+// Fórmulas:
+//   PV = C · [1 − (1+i_m)^−n] / i_m   (valor presente de n cuotas C a tasa mensual i_m)
+//   TIR mensual r: P_cash = PV(r, C, n)  — buscamos r vía bisección
+//   Conviene cuotas si  PV(inflación) < P_cash   ⇔   TIR < inflación mensual
+function pvAnnuity(C, n, r) {
+  if (!n) return 0;
+  if (Math.abs(r) < 1e-12) return C * n;
+  return C * (1 - Math.pow(1 + r, -n)) / r;
+}
+function implicitMonthlyRate(P_cash, P_total, n) {
+  // Devuelve r mensual tal que PV(r) = P_cash. Si no hay costo financiero, 0.
+  if (P_total <= P_cash || n <= 0 || P_cash <= 0) return 0;
+  const C = P_total / n;
+  let lo = 1e-9, hi = 5; // hasta 500% mensual
+  for (let i = 0; i < 200; i++) {
+    const mid = (lo + hi) / 2;
+    const pv = pvAnnuity(C, n, mid);
+    if (pv > P_cash) lo = mid; else hi = mid;
+    if (hi - lo < 1e-10) break;
+  }
+  return (lo + hi) / 2;
+}
+
+async function screenCuotas(main) {
+  main.innerHTML = pHd('cuotas vs contado · inflación', 'Cuotas vs Contado',
+    'Calculadora estilo infleta.com.ar. Descontando el valor del peso por inflación, averiguá si conviene pagar en cuotas (aunque sea más caro nominal) o cash.')
+    + `<section class="s">
+        <h2><span>inputs</span><span class="line"></span></h2>
+        <div class="cuotas-grid">
+          <label class="cq-field">
+            <span>precio contado (ARS)</span>
+            <input type="text" id="cq-cash" inputmode="decimal" value="100000">
+          </label>
+          <label class="cq-field">
+            <span>precio total en cuotas (ARS)</span>
+            <input type="text" id="cq-total" inputmode="decimal" value="120000">
+          </label>
+          <label class="cq-field">
+            <span>inflación mensual esperada (%)</span>
+            <input type="text" id="cq-infl" inputmode="decimal" value="2.5">
+          </label>
+          <label class="cq-field">
+            <span>cantidad de cuotas</span>
+            <input type="number" id="cq-n" min="1" max="60" value="12">
+          </label>
+        </div>
+        <div class="cq-presets">
+          <span class="cq-presets-lbl">cuotas:</span>
+          <div class="dol-seg" id="cq-n-presets">
+            <button type="button" data-n="3">3</button>
+            <button type="button" data-n="6">6</button>
+            <button type="button" data-n="12" class="on">12</button>
+            <button type="button" data-n="18">18</button>
+            <button type="button" data-n="24">24</button>
+            <button type="button" data-n="36">36</button>
+          </div>
+        </div>
+        <div class="cq-presets">
+          <span class="cq-presets-lbl">inflación:</span>
+          <div class="dol-seg" id="cq-i-presets">
+            <button type="button" data-i="2.0">2.0%</button>
+            <button type="button" data-i="2.5" class="on">2.5%</button>
+            <button type="button" data-i="3.0">3.0%</button>
+            <button type="button" data-i="3.5">3.5%</button>
+            <button type="button" data-i="4.0">4.0%</button>
+          </div>
+        </div>
+      </section>
+      <section class="s">
+        <h2><span>resultado</span><span class="line"></span></h2>
+        <div id="cq-verdict" class="cq-verdict"></div>
+        <div id="cq-stats" class="cq-stats"></div>
+        <div id="cq-flow"></div>
+        <p class="hint" style="margin-top:10px">
+          Fórmula: <b>PV = C · [1 − (1 + i)<sup>−n</sup>] / i</b> · TIR vía bisección ·
+          Conviene cuotas si la TNA implícita es menor que la inflación anualizada equivalente.
+        </p>
+      </section>`;
+
+  const S = { cash: 100000, total: 120000, infl: 0.025, n: 12 };
+  const parseNum = (v) => {
+    if (typeof v !== 'string') return +v;
+    return parseFloat(v.replace(/\./g, '').replace(/,/g, '.').replace(/[^0-9.\-]/g, '')) || 0;
+  };
+  const readInputs = () => {
+    S.cash = parseNum($('#cq-cash').value);
+    S.total = parseNum($('#cq-total').value);
+    S.infl = parseNum($('#cq-infl').value) / 100;
+    S.n = Math.max(1, Math.min(60, parseInt($('#cq-n').value) || 1));
+  };
+
+  function render() {
+    const { cash, total, infl, n } = S;
+    const C = total / n;
+    const pvInfl = pvAnnuity(C, n, infl);
+    const savingNominal = cash - total;          // + si contado es más caro (raro)
+    const savingReal = cash - pvInfl;             // + si cuotas conviene (PV < cash)
+    const rMensual = implicitMonthlyRate(cash, total, n);
+    const tna = rMensual * 12;
+    const tea = Math.pow(1 + rMensual, 12) - 1;
+    const inflAnual = Math.pow(1 + infl, 12) - 1;
+    const conviene = pvInfl < cash;
+    const pctAhorro = cash > 0 ? (savingReal / cash) * 100 : 0;
+
+    const verdict = conviene
+      ? `<div class="cq-big up">
+          <div class="cq-big-lbl">veredicto</div>
+          <div class="cq-big-val">CUOTAS</div>
+          <div class="cq-big-sub">pagás ${fmtPctPlain(Math.abs(pctAhorro), 2)} menos en términos reales</div>
+        </div>`
+      : `<div class="cq-big down">
+          <div class="cq-big-lbl">veredicto</div>
+          <div class="cq-big-val">CONTADO</div>
+          <div class="cq-big-sub">cuotas te salen ${fmtPctPlain(Math.abs(pctAhorro), 2)} más caro en términos reales</div>
+        </div>`;
+    $('#cq-verdict').innerHTML = verdict;
+
+    const fmtARS = (v) => '$' + fmt(v, 0);
+    $('#cq-stats').innerHTML = `
+      <div class="cq-stat">
+        <div class="lbl">cuota mensual</div>
+        <div class="val">${fmtARS(C)}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">sobreprecio nominal</div>
+        <div class="val ${total > cash ? 'down' : 'up'}">${total === cash ? '—' : fmtARS(total - cash) + ' (' + fmtPctPlain((total-cash)/cash*100, 1) + ')'}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">valor presente de cuotas</div>
+        <div class="val">${fmtARS(pvInfl)}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">ahorro real (cash − PV)</div>
+        <div class="val ${conviene ? 'up' : 'down'}">${fmtARS(savingReal)}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">TIR mensual implícita</div>
+        <div class="val">${fmtPctPlain(rMensual * 100, 2)}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">TNA implícita</div>
+        <div class="val">${fmtPctPlain(tna * 100, 2)}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">TEA implícita</div>
+        <div class="val">${fmtPctPlain(tea * 100, 2)}</div>
+      </div>
+      <div class="cq-stat">
+        <div class="lbl">inflación anualizada</div>
+        <div class="val">${fmtPctPlain(inflAnual * 100, 2)}</div>
+      </div>`;
+
+    // Tabla de flujo mes a mes (valor presente acumulado)
+    const rows = [];
+    let pvAcum = 0;
+    for (let k = 1; k <= n; k++) {
+      const pvK = C / Math.pow(1 + infl, k);
+      pvAcum += pvK;
+      rows.push(`<tr>
+        <td class="dim">${String(k).padStart(2, '0')}</td>
+        <td class="num">${fmtARS(C)}</td>
+        <td class="num dim">${fmtARS(pvK)}</td>
+        <td class="num">${fmtARS(pvAcum)}</td>
+      </tr>`);
+    }
+    $('#cq-flow').innerHTML = `<details class="cq-flow"><summary>ver flujo mes a mes</summary>
+      <table class="t" style="margin-top:10px">
+        <thead><tr>
+          <th style="text-align:left">#</th>
+          <th>cuota nominal</th>
+          <th>PV cuota</th>
+          <th>PV acumulado</th>
+        </tr></thead>
+        <tbody>${rows.join('')}</tbody>
+      </table></details>`;
+  }
+
+  // Wire inputs
+  ['#cq-cash', '#cq-total', '#cq-infl'].forEach(sel => {
+    $(sel).addEventListener('input', () => { readInputs(); render(); });
+  });
+  $('#cq-n').addEventListener('input', () => {
+    readInputs();
+    $$('#cq-n-presets button').forEach(b => b.classList.toggle('on', +b.dataset.n === S.n));
+    render();
+  });
+  document.getElementById('cq-n-presets').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-n]');
+    if (!btn) return;
+    $$('#cq-n-presets button').forEach(x => x.classList.remove('on'));
+    btn.classList.add('on');
+    $('#cq-n').value = btn.dataset.n;
+    readInputs(); render();
+  });
+  document.getElementById('cq-i-presets').addEventListener('click', (ev) => {
+    const btn = ev.target.closest('button[data-i]');
+    if (!btn) return;
+    $$('#cq-i-presets button').forEach(x => x.classList.remove('on'));
+    btn.classList.add('on');
+    $('#cq-infl').value = btn.dataset.i;
+    readInputs(); render();
+  });
+
+  readInputs();
+  render();
+}
+
 async function screenMundial(main) {
   main.innerHTML = pHd('mundial · fifa 2026', 'Mundial 2026', 'Cuenta regresiva al inicio del Mundial 2026, grupos oficiales, partidos y sedes. Copa del Mundo FIFA.')
     + renderMundialCountdown()
@@ -2758,6 +2968,7 @@ const SCREENS = {
   mundo: screenMundo,
   cedears: screenCedears,
   remesas: screenRemesas,
+  cuotas: screenCuotas,
   ars: screenARS,
   bonos: screenBonos,
   ons: screenONs,
@@ -2770,7 +2981,7 @@ const SCREENS = {
 
 // ─── Keyboard ─────────────────────────────────────────────────
 let _gMode = false, _gTimer = null;
-const G_KEY = { m: 'mundo', c: 'cedears', s: 'remesas', a: 'ars', b: 'bonos', o: 'ons', h: 'hipotecarios', d: 'dolar', p: 'pix', r: 'bcra', w: 'mundial' };
+const G_KEY = { m: 'mundo', c: 'cedears', s: 'remesas', q: 'cuotas', a: 'ars', b: 'bonos', o: 'ons', h: 'hipotecarios', d: 'dolar', p: 'pix', r: 'bcra', w: 'mundial' };
 const G_EXT = { e: '/earnings' };
 
 function onKey(e) {
