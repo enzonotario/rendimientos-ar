@@ -828,10 +828,11 @@ table.t td.cell-logo { padding-left: 0; }
   .dol-seg button { padding: 3px 8px; font-size: 10px; }
   .dol-24x7 { font-size: 10px; }
 
-  /* Argy monitor: 2 cards por fila en mobile */
-  .argy-grid { grid-template-columns: 1fr 1fr; }
-  .argy-card { padding: 10px 12px; }
-  .argy-card .val { font-size: 17px; }
+  /* Argy monitor: hero stackeado full-width en mobile */
+  .argy-hero { grid-template-columns: 1fr; gap: 8px; }
+  .argy-hero-card { padding: 12px 14px 14px; }
+  .argy-hero-card .val { font-size: 24px; }
+  .argy-hero-card .val small { font-size: 12px; }
 
   /* Cuotas calculator: comfortable on mobile */
   .cuotas-grid { grid-template-columns: 1fr; gap: 10px; }
@@ -1263,39 +1264,49 @@ table.t td.cell-logo { padding-left: 0; }
 .dol-24x7 input { accent-color: var(--fg); }
 
 /* ─── Monitor · Argy (dashboard Argentina) ────────────────── */
-.argy-grid {
+/* Hero strip: 3 números clave arriba, más grandes que las tablas.
+   Estilo Bloomberg terminal: panel oscuro con borde sutil izquierdo
+   en color hot para llamar la atención. */
+.argy-hero {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 1px;
-  background: var(--rule-hi);
-  border: 1px solid var(--rule-hi);
-  margin: 10px 0 0;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin: 10px 0 4px;
 }
-.argy-card {
-  background: var(--bg);
-  padding: 14px 16px;
+.argy-hero-card {
+  border: 1px solid var(--rule-hi);
+  border-left: 3px solid var(--hot);
+  background: var(--bg-1);
+  padding: 14px 18px 16px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
-.argy-card .lbl {
+.argy-hero-card .lbl {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--fg-dim);
 }
-.argy-card .val {
-  font-size: 22px;
+.argy-hero-card .val {
+  font-size: 28px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--fg);
+  line-height: 1;
 }
-.argy-card .sub {
+.argy-hero-card .val small {
+  font-size: 13px;
+  color: var(--fg-dim);
+  font-weight: 400;
+  margin-left: 4px;
+}
+.argy-hero-card .sub {
   font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--fg-faint);
-  margin-top: 2px;
 }
 
 /* ─── Cuotas vs Contado (calculadora tipo infleta) ─────────── */

@@ -968,13 +968,14 @@ function normalizeAsset(a, bucket) {
 // Fuente: /api/cotizaciones (oficial+MEP+CCL+riesgo), /api/dolar
 // (blue/cripto/USDT), /api/bcra (todo lo demás).
 async function screenArgy(main) {
-  main.innerHTML = pHd('monitor · argy · variables clave',
+  main.innerHTML = pHd('monitor · argy',
     'Monitor Argentina',
     'Cotizaciones, tasas y macro de Argentina en una sola pantalla. Datos BCRA + comparadolar + argentinadatos.')
-    + `<section class="s"><h2><span>dólar</span><span class="line"></span></h2><div id="argy-fx" class="argy-grid"><div class="loading-row"> cargando…</div></div></section>`
-    + `<section class="s"><h2><span>tasas</span><span class="line"></span></h2><div id="argy-rates" class="argy-grid"><div class="loading-row"> cargando…</div></div></section>`
-    + `<section class="s"><h2><span>macro</span><span class="line"></span></h2><div id="argy-macro" class="argy-grid"><div class="loading-row"> cargando…</div></div></section>`
-    + `<section class="s"><h2><span>monetario</span><span class="line"></span></h2><div id="argy-mon" class="argy-grid"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>pulse · hoy</span><span class="line"></span></h2><div id="argy-hero" class="argy-hero"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>dólar · brecha vs oficial</span><span class="line"></span></h2><div id="argy-fx"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>tasas · rendimiento pesos</span><span class="line"></span></h2><div id="argy-rates"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>macro</span><span class="line"></span></h2><div id="argy-macro"><div class="loading-row"> cargando…</div></div></section>`
+    + `<section class="s"><h2><span>monetario</span><span class="line"></span></h2><div id="argy-mon" class="kline"><div class="loading-row"> cargando…</div></div></section>`
     + `<p class="hint" style="margin-top:12px">Fuentes: BCRA (tasas, inflación, reservas, monetario) · argentinadatos (riesgo país, MEP, CCL) · comparadolar (blue, cripto/USDT). Actualizados cada 5 min.</p>`;
 
   try {
@@ -985,47 +986,89 @@ async function screenArgy(main) {
     ]);
 
     const bcraList = Array.isArray(bcra.data) ? bcra.data : [];
-    // Buscar variable BCRA por substring en el nombre (case-insensitive)
     const findVar = (q) => bcraList.find(v => String(v.nombre || '').toLowerCase().includes(q.toLowerCase()));
+    // % change entre valor actual y anterior (BCRA trae ambos)
+    const varPct = (v) => {
+      if (!v) return null;
+      const cur = +v.valor, prev = +v.valorAnterior;
+      if (!isFinite(cur) || !isFinite(prev) || prev === 0) return null;
+      return (cur - prev) / Math.abs(prev) * 100;
+    };
+    // Cambio en puntos porcentuales (para tasas e inflación que ya vienen en %)
+    const varPP = (v) => {
+      if (!v) return null;
+      const cur = +v.valor, prev = +v.valorAnterior;
+      if (!isFinite(cur) || !isFinite(prev)) return null;
+      return cur - prev;
+    };
+    const chgCell = (pct, digits = 2) => {
+      if (pct == null) return '<td class="num dim">—</td>';
+      return `<td class="num ${signClass(pct)}">${arrow(pct)} ${fmtPct(pct, digits)}</td>`;
+    };
 
-    // Helper para renderizar una card de stat
-    function card(lbl, val, sub, cls) {
-      const klass = cls || '';
-      return `<div class="argy-card ${klass}">
-        <div class="lbl">${esc(lbl)}</div>
-        <div class="val hot">${val}</div>
-        ${sub ? `<div class="sub dim">${sub}</div>` : ''}
-      </div>`;
-    }
-
-    // ─── Dólar ───
+    // ─── Dólar: calcular todas las cotizaciones ───
     const usdArr = (dol.exchanges && dol.exchanges.usd) || [];
     const usdtArr = (dol.exchanges && dol.exchanges.usdt) || [];
-    // Blue: promedio de entidades "crypto-like" 24/7 (excluimos bancos)
     const nonBanks = usdArr.filter(e => !e.isBank && e.is24x7 && e.ask > 0);
     const avgBlueAsk = nonBanks.length ? nonBanks.reduce((a, b) => a + b.ask, 0) / nonBanks.length : null;
-    // USDT: promedio ask
     const usdtValid = usdtArr.filter(e => e.ask > 0);
     const avgUsdt = usdtValid.length ? usdtValid.reduce((a, b) => a + b.ask, 0) / usdtValid.length : null;
 
-    const mayorista = findVar('mayorista');
-    const minorista = findVar('minorista');
-    const cot_oficial = cot.oficial && cot.oficial.price;
+    const mayoristaVar = findVar('mayorista');
+    const minoristaVar = findVar('minorista');
+    const cot_oficial = (cot.oficial && cot.oficial.price) || (mayoristaVar ? +mayoristaVar.valor : null);
+    const prev_oficial = cot.oficial && cot.oficial.prevClose;
+    const chgOficial = (cot_oficial && prev_oficial) ? ((cot_oficial - prev_oficial) / prev_oficial) * 100 : varPct(mayoristaVar);
     const cot_mep = cot.mep && cot.mep.price;
     const cot_ccl = cot.ccl && cot.ccl.price;
-    const brechaMep = (cot_mep && cot_oficial) ? ((cot_mep / cot_oficial - 1) * 100) : null;
-    const brechaCcl = (cot_ccl && cot_oficial) ? ((cot_ccl / cot_oficial - 1) * 100) : null;
+    const brecha = (v) => (v && cot_oficial) ? ((v / cot_oficial - 1) * 100) : null;
 
-    $('#argy-fx').innerHTML = [
-      card('mayorista', cot_oficial ? '$' + fmt(cot_oficial, 2) : (mayorista ? '$' + fmt(+mayorista.valor, 2) : '—'), 'BCRA referencia'),
-      card('minorista', minorista ? '$' + fmt(+minorista.valor, 2) : '—', 'BCRA vendedor'),
-      card('MEP', cot_mep ? '$' + fmt(cot_mep, 2) : '—', brechaMep != null ? `brecha +${fmt(brechaMep, 1)}%` : 'AL30/AL30D'),
-      card('CCL', cot_ccl ? '$' + fmt(cot_ccl, 2) : '—', brechaCcl != null ? `brecha +${fmt(brechaCcl, 1)}%` : 'AL30/AL30C'),
-      card('blue', avgBlueAsk ? '$' + fmt(avgBlueAsk, 2) : '—', nonBanks.length ? `promedio ${nonBanks.length} exchanges` : 'sin datos'),
-      card('cripto · USDT', avgUsdt ? '$' + fmt(avgUsdt, 2) : '—', usdtValid.length ? `promedio ${usdtValid.length} exchanges` : 'sin datos'),
+    // ─── Hero strip: 3 números que todos miran ───
+    const riesgo = (cot.riesgoPais && cot.riesgoPais.value) || null;
+    const inflMes = findVar('Inflación Mensual');
+    const heroCard = (lbl, val, sub, cls = '') => `<div class="argy-hero-card ${cls}">
+      <div class="lbl">${esc(lbl)}</div>
+      <div class="val">${val}</div>
+      <div class="sub">${sub}</div>
+    </div>`;
+    const brechaMep = brecha(cot_mep);
+    $('#argy-hero').innerHTML = [
+      heroCard('dólar MEP',
+        cot_mep ? '$' + fmt(cot_mep, 2) : '—',
+        brechaMep != null ? `brecha oficial ${fmtPct(brechaMep, 1)}` : 'AL30 / AL30D'),
+      heroCard('riesgo país',
+        riesgo != null ? fmt(riesgo, 0) + ' <small>bps</small>' : '—',
+        'EMBI Argentina'),
+      heroCard('inflación mensual',
+        inflMes ? fmt(+inflMes.valor, 1) + '%' : '—',
+        inflMes ? 'IPC · ' + esc(inflMes.fecha || '') : 'IPC'),
     ].join('');
 
-    // ─── Tasas ───
+    // ─── Tabla dólar ───
+    const fxRows = [
+      { name: 'Mayorista', sub: 'BCRA referencia', price: cot_oficial, chg: chgOficial, brechaRaw: 0 },
+      { name: 'Minorista', sub: 'BCRA vendedor', price: minoristaVar ? +minoristaVar.valor : null, chg: varPct(minoristaVar), brechaRaw: brecha(minoristaVar ? +minoristaVar.valor : null) },
+      { name: 'MEP', sub: 'AL30 / AL30D', price: cot_mep, chg: null, brechaRaw: brecha(cot_mep) },
+      { name: 'CCL', sub: 'AL30 / AL30C', price: cot_ccl, chg: null, brechaRaw: brecha(cot_ccl) },
+      { name: 'Blue', sub: nonBanks.length ? `promedio ${nonBanks.length} exch.` : 'sin datos', price: avgBlueAsk, chg: null, brechaRaw: brecha(avgBlueAsk) },
+      { name: 'Cripto · USDT', sub: usdtValid.length ? `promedio ${usdtValid.length} exch.` : 'sin datos', price: avgUsdt, chg: null, brechaRaw: brecha(avgUsdt) },
+    ];
+    $('#argy-fx').innerHTML = `<table class="t">
+      <thead><tr>
+        <th style="text-align:left">tipo</th>
+        <th>cotización</th>
+        <th>var día</th>
+        <th>brecha oficial</th>
+      </tr></thead>
+      <tbody>${fxRows.map(r => `<tr>
+        <td><span class="hot">${esc(r.name)}</span> <span class="dim" style="margin-left:6px;font-size:11px">${esc(r.sub)}</span></td>
+        <td class="num">${r.price != null ? '$' + fmt(r.price, 2) : '—'}</td>
+        ${chgCell(r.chg, 2)}
+        <td class="num ${r.brechaRaw == null ? 'dim' : r.brechaRaw === 0 ? 'dim' : 'hot'}">${r.brechaRaw == null ? '—' : r.brechaRaw === 0 ? 'baseline' : fmtPct(r.brechaRaw, 1)}</td>
+      </tr>`).join('')}</tbody>
+    </table>`;
+
+    // ─── Tabla tasas ───
     const tamarTna = findVar('TAMAR Privados (TNA)');
     const tamarTea = findVar('TAMAR Privados (TEA)');
     const badlarTna = findVar('BADLAR Privados (TNA)');
@@ -1035,54 +1078,109 @@ async function screenArgy(main) {
     const adelCC = findVar('Adelantos');
     const baibar = findVar('BAIBAR');
 
-    $('#argy-rates').innerHTML = [
-      card('TAMAR', tamarTna ? fmt(+tamarTna.valor, 2) + '%' : '—',
-        tamarTea ? `TNA · TEA ${fmt(+tamarTea.valor, 2)}%` : 'TNA'),
-      card('BADLAR', badlarTna ? fmt(+badlarTna.valor, 2) + '%' : '—',
-        badlarTea ? `TNA · TEA ${fmt(+badlarTea.valor, 2)}%` : 'TNA'),
-      card('caución · BAIBAR', baibar ? fmt(+baibar.valor, 2) + '%' : '—', 'interbancaria TNA'),
-      card('depósitos 30d', dep30 ? fmt(+dep30.valor, 2) + '%' : '—', 'TNA'),
-      card('préstamos personales', presPer ? fmt(+presPer.valor, 2) + '%' : '—', 'TNA'),
-      card('adelantos cta cte', adelCC ? fmt(+adelCC.valor, 2) + '%' : '—', 'TNA'),
-    ].join('');
+    const rateRow = (name, sub, tna, tea) => ({
+      name, sub,
+      tnaVal: tna ? +tna.valor : null,
+      teaVal: tea ? +tea.valor : null,
+      chg: varPP(tna),
+    });
+    const rateRows = [
+      rateRow('TAMAR', 'privados · plazo fijo mayorista', tamarTna, tamarTea),
+      rateRow('BADLAR', 'privados · plazo fijo >1M', badlarTna, badlarTea),
+      rateRow('Caución · BAIBAR', 'interbancaria', baibar, null),
+      rateRow('Depósitos 30d', 'promedio sistema', dep30, null),
+      rateRow('Préstamos personales', 'promedio sistema', presPer, null),
+      rateRow('Adelantos cta cte', 'promedio sistema', adelCC, null),
+    ];
+    $('#argy-rates').innerHTML = `<table class="t">
+      <thead><tr>
+        <th style="text-align:left">tasa</th>
+        <th>TNA</th>
+        <th>TEA</th>
+        <th>var día (pp)</th>
+      </tr></thead>
+      <tbody>${rateRows.map(r => `<tr>
+        <td><span class="hot">${esc(r.name)}</span> <span class="dim" style="margin-left:6px;font-size:11px">${esc(r.sub)}</span></td>
+        <td class="num">${r.tnaVal != null ? fmt(r.tnaVal, 2) + '%' : '—'}</td>
+        <td class="num ${r.teaVal != null ? '' : 'dim'}">${r.teaVal != null ? fmt(r.teaVal, 2) + '%' : '—'}</td>
+        ${r.chg == null ? '<td class="num dim">—</td>' : `<td class="num ${signClass(r.chg)}">${arrow(r.chg)} ${fmt(r.chg, 2)} pp</td>`}
+      </tr>`).join('')}</tbody>
+    </table>`;
 
-    // ─── Macro ───
-    const riesgo = (cot.riesgoPais && cot.riesgoPais.value) || null;
-    const inflMes = findVar('Inflación Mensual');
+    // ─── Tabla macro ───
     const inflYoY = findVar('Inflación Interanual');
     const inflEsp = findVar('Inflación Esperada');
     const reservas = findVar('Reservas Internacionales');
-    const reservasMUsd = reservas ? +reservas.valor : null; // unit = millones USD
+    const reservasMUsd = reservas ? +reservas.valor : null;
 
-    $('#argy-macro').innerHTML = [
-      card('riesgo país', riesgo != null ? fmt(riesgo, 0) + ' bps' : '—', 'EMBI argentinadatos'),
-      card('inflación mensual', inflMes ? fmt(+inflMes.valor, 1) + '%' : '—',
-        inflMes ? 'IPC · ' + esc(inflMes.fecha || '') : 'IPC'),
-      card('inflación interanual', inflYoY ? fmt(+inflYoY.valor, 1) + '%' : '—',
-        inflYoY ? 'IPC · ' + esc(inflYoY.fecha || '') : 'IPC'),
-      card('expectativa 12m', inflEsp ? fmt(+inflEsp.valor, 1) + '%' : '—', 'REM BCRA'),
-      card('reservas brutas', reservasMUsd != null ? 'USD ' + fmt(reservasMUsd / 1000, 1) + ' MM' : '—',
-        reservas ? esc(reservas.fecha || '') : 'BCRA'),
-    ].join('');
+    $('#argy-macro').innerHTML = `<table class="t">
+      <thead><tr>
+        <th style="text-align:left">variable</th>
+        <th>valor</th>
+        <th>var</th>
+        <th style="text-align:left">actualizado</th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td><span class="hot">Riesgo país</span> <span class="dim" style="margin-left:6px;font-size:11px">EMBI Argentina</span></td>
+          <td class="num">${riesgo != null ? fmt(riesgo, 0) + ' bps' : '—'}</td>
+          <td class="num dim">—</td>
+          <td class="dim">hoy · argentinadatos</td>
+        </tr>
+        <tr>
+          <td><span class="hot">Inflación mensual</span> <span class="dim" style="margin-left:6px;font-size:11px">IPC INDEC</span></td>
+          <td class="num">${inflMes ? fmt(+inflMes.valor, 1) + '%' : '—'}</td>
+          ${(() => { const pp = varPP(inflMes); return pp == null ? '<td class="num dim">—</td>' : `<td class="num ${signClass(pp)}">${arrow(pp)} ${fmt(pp, 1)} pp</td>`; })()}
+          <td class="dim">${inflMes ? esc(inflMes.fecha || '') : '—'}</td>
+        </tr>
+        <tr>
+          <td><span class="hot">Inflación interanual</span> <span class="dim" style="margin-left:6px;font-size:11px">IPC YoY</span></td>
+          <td class="num">${inflYoY ? fmt(+inflYoY.valor, 1) + '%' : '—'}</td>
+          ${(() => { const pp = varPP(inflYoY); return pp == null ? '<td class="num dim">—</td>' : `<td class="num ${signClass(pp)}">${arrow(pp)} ${fmt(pp, 1)} pp</td>`; })()}
+          <td class="dim">${inflYoY ? esc(inflYoY.fecha || '') : '—'}</td>
+        </tr>
+        <tr>
+          <td><span class="hot">Expectativa 12m</span> <span class="dim" style="margin-left:6px;font-size:11px">REM · relevamiento</span></td>
+          <td class="num">${inflEsp ? fmt(+inflEsp.valor, 1) + '%' : '—'}</td>
+          ${(() => { const pp = varPP(inflEsp); return pp == null ? '<td class="num dim">—</td>' : `<td class="num ${signClass(pp)}">${arrow(pp)} ${fmt(pp, 1)} pp</td>`; })()}
+          <td class="dim">${inflEsp ? esc(inflEsp.fecha || '') : '—'}</td>
+        </tr>
+        <tr>
+          <td><span class="hot">Reservas brutas</span> <span class="dim" style="margin-left:6px;font-size:11px">BCRA</span></td>
+          <td class="num">${reservasMUsd != null ? 'USD ' + fmt(reservasMUsd / 1000, 1) + ' MM' : '—'}</td>
+          ${chgCell(varPct(reservas), 2)}
+          <td class="dim">${reservas ? esc(reservas.fecha || '') : '—'}</td>
+        </tr>
+      </tbody>
+    </table>`;
 
-    // ─── Monetario ───
+    // ─── Monetario (kline compacto) ───
     const baseMon = findVar('Base Monetaria');
-    const circMon = findVar('Circulación Monetaria');
     const deps = findVar('Depósitos en EF');
     const prestSP = findVar('Préstamos al Sector Privado');
     const m2Yoy = findVar('M2 Privado');
-
     const fmtARS = (v) => v >= 1e6 ? '$' + fmt(v / 1e6, 2) + ' B' : '$' + fmt(v / 1000, 1) + ' M';
-
+    const klineK = (lbl, val, chgTxt, chgCls) => `<div class="k">
+      <div class="lbl">${esc(lbl)}</div>
+      <div class="val">${val}</div>
+      <div class="chg ${chgCls || 'dim'}">${chgTxt}</div>
+    </div>`;
+    const klineChg = (v) => {
+      const p = varPct(v);
+      if (p == null) return { txt: '—', cls: 'dim' };
+      return { txt: `${arrow(p)} ${fmtPct(p, 2)}`, cls: signClass(p) };
+    };
+    const ch1 = klineChg(baseMon);
+    const ch2 = klineChg(deps);
+    const ch3 = klineChg(prestSP);
     $('#argy-mon').innerHTML = [
-      card('base monetaria', baseMon ? fmtARS(+baseMon.valor) : '—', baseMon ? esc(baseMon.fecha || '') : 'BCRA'),
-      card('circulación', circMon ? fmtARS(+circMon.valor) : '—', 'billetes + efectivo'),
-      card('depósitos totales', deps ? fmtARS(+deps.valor) : '—', 'entidades financieras'),
-      card('préstamos sector privado', prestSP ? fmtARS(+prestSP.valor) : '—', 'BCRA'),
-      card('M2 privado · YoY', m2Yoy ? fmt(+m2Yoy.valor, 1) + '%' : '—', 'var. interanual'),
+      klineK('base monetaria', baseMon ? fmtARS(+baseMon.valor) : '—', ch1.txt, ch1.cls),
+      klineK('depósitos EF', deps ? fmtARS(+deps.valor) : '—', ch2.txt, ch2.cls),
+      klineK('préstamos S. priv.', prestSP ? fmtARS(+prestSP.valor) : '—', ch3.txt, ch3.cls),
+      klineK('M2 priv. YoY', m2Yoy ? fmt(+m2Yoy.valor, 1) + '%' : '—', 'var. interanual', 'dim'),
     ].join('');
   } catch (e) {
-    $('#argy-fx').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
+    $('#argy-hero').innerHTML = `<div class="empty-state"><span class="down">ERROR</span> ${esc(e.message)}</div>`;
   }
 }
 
