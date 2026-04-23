@@ -1382,6 +1382,48 @@ details.cq-flow[open] summary { color: var(--fg); }
 .ced-search::placeholder { color: var(--fg-faint); }
 .ced-search:focus { border-color: var(--fg); }
 
+/* CSV download button (CEDEARs) */
+.ced-csv {
+  background: var(--bg-1);
+  border: 1px solid var(--rule-hi);
+  color: var(--fg-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+.ced-csv:hover:not(:disabled) { color: var(--hot); border-color: var(--hot); }
+.ced-csv:disabled { opacity: 0.4; cursor: not-allowed; }
+
+/* Sortable headers (CEDEARs) */
+table.t.ced-sortable th { padding: 0; }
+.ced-th {
+  width: 100%;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  color: var(--fg-dim);
+  font: inherit;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  text-align: left;
+  white-space: nowrap;
+}
+.ced-th.right { text-align: right; }
+.ced-th:hover { color: var(--hot); }
+.ced-arr {
+  display: inline-block;
+  min-width: 10px;
+  margin-left: 4px;
+  font-size: 9px;
+  color: var(--fg-faint);
+}
+.ced-arr.act { color: var(--hot); }
+
 /* Hot USA movers grid */
 .hot-grid {
   display: grid;
