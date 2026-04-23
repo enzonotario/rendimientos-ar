@@ -672,7 +672,29 @@ async function fetchCached(url, ttlMs = 60_000) {
 }
 
 // ─── Screen: Mundo ────────────────────────────────────────────
-const MUNDO_CATEGORIES = ['Indices', 'Rates', 'FX', 'Commodities', 'Crypto'];
+// Orden de categorías para Mundo (de más "core" a más "riesgo"):
+// equity → rates → commodities → FX → crypto. Energía/Metales/Agro separados
+// para que BRENT + WTI queden juntos en su propia sección.
+const MUNDO_CATEGORIES = ['Índices', 'Tasas', 'Energía', 'Metales', 'Agro', 'Monedas', 'Crypto'];
+
+// Prioridad de orden DENTRO de cada categoría. Menor número = primero.
+// Items sin entrada caen a 99 (se ordenan después, alfabéticamente por sym como tie-break).
+const MUNDO_ORDER = {
+  // Índices — por capitalización/relevancia
+  SPX: 0, NASDAQ: 1, DOW: 2,
+  // Tasas — por tenor ascendente (5Y → 10Y → 30Y)
+  US5Y: 0, TNX: 1, US10Y: 1, US30Y: 2,
+  // Energía — crudo juntos, después refinados
+  OIL: 0, WTI: 0, BRENT: 1, GASOLINE: 2,
+  // Metales — preciosos primero, industriales después
+  GOLD: 0, SILVER: 1, COPPER: 2,
+  // Agro — granos core
+  SOY: 0, WHEAT: 1, CORN: 2,
+  // Monedas — EUR mayor, después LatAm
+  EURUSD: 0, USDMXN: 1, USDBRL: 2,
+  // Crypto — por capitalización
+  BTC: 0, ETH: 1, AVAX: 2,
+};
 
 async function screenMundo(main) {
   main.innerHTML = pHd('mundo · monitor global', 'Monitor Global', 'Principales indicadores del mercado mundial, separados por categoría. Click en una fila para verla grande a la derecha.')
@@ -693,7 +715,8 @@ async function screenMundo(main) {
     return;
   }
   const world = normalizeMundo(res);
-  const state = { sort: { k: 'sym', dir: 'asc' }, sel: null };
+  // Default sort 'ord' = orden natural configurado en MUNDO_ORDER (WTI antes que BRENT, etc.)
+  const state = { sort: { k: 'ord', dir: 'asc' }, sel: null };
 
   function render() {
     $('#mundo-tbl').innerHTML = renderTable();
@@ -721,9 +744,15 @@ async function screenMundo(main) {
       const items = (world[cat] || []).slice();
       items.sort((a, b) => {
         const va = a[state.sort.k], vb = b[state.sort.k];
-        if (typeof va === 'number' && typeof vb === 'number') return state.sort.dir === 'asc' ? va - vb : vb - va;
-        const sa = String(va || ''), sb = String(vb || '');
-        return state.sort.dir === 'asc' ? sa.localeCompare(sb) : sb.localeCompare(sa);
+        const dir = state.sort.dir === 'asc' ? 1 : -1;
+        let cmp;
+        if (typeof va === 'number' && typeof vb === 'number') cmp = va - vb;
+        else cmp = String(va || '').localeCompare(String(vb || ''));
+        // Tiebreaker por sym asc para orden estable (útil cuando hay muchos 'ord'=99)
+        if (cmp === 0 && state.sort.k !== 'sym') {
+          return String(a.sym || '').localeCompare(String(b.sym || ''));
+        }
+        return dir * cmp;
       });
       rows.push(`<tr class="cat"><td colspan="5">── ${cat.toLowerCase()} <span class="line">────────────────────────────────────────────────────</span></td></tr>`);
       for (const r of items) {
@@ -852,16 +881,21 @@ async function loadEarningsTimelineInto(el, countEl) {
 function normalizeMundo(raw) {
   if (!raw) return {};
   const GROUP_MAP = {
-    'Índices': 'Indices',
-    'Indices': 'Indices',
-    'Tasas': 'Rates',
-    'Rates': 'Rates',
-    'Monedas': 'FX',
-    'FX': 'FX',
-    'Energía': 'Commodities',
-    'Metales': 'Commodities',
-    'Agro': 'Commodities',
-    'Commodities': 'Commodities',
+    'Índices': 'Índices',
+    'Indices': 'Índices',
+    'Tasas': 'Tasas',
+    'Rates': 'Tasas',
+    'Monedas': 'Monedas',
+    'FX': 'Monedas',
+    'Energía': 'Energía',
+    'Energy': 'Energía',
+    'Metales': 'Metales',
+    'Metals': 'Metales',
+    'Agro': 'Agro',
+    // Fallback para fuentes viejas que mandan todo como Commodities:
+    // lo ruteamos a Energía por default (WTI/Brent son los principales) y
+    // dejamos que el reorder las separe si hace falta
+    'Commodities': 'Energía',
     'Crypto': 'Crypto',
   };
   const out = {};
@@ -897,18 +931,20 @@ function normalizeAsset(a, bucket) {
     const first = sp[0], lastSp = sp[sp.length - 1];
     if (first) ytd = ((lastSp - first) / first) * 100;
   }
-  // Rates (UST 10Y, UST 30Y, etc.) are already in % → render as "4.27%" not "4.27"
-  const pct = bucket === 'Rates' || !!a.pct;
-  // Decimals hint: crypto & rates use 2; FX uses 4; default 2
+  // Tasas (UST 10Y, UST 30Y, etc.) are already in % → render as "4.27%" not "4.27"
+  const pct = bucket === 'Tasas' || !!a.pct;
+  // Decimals hint: crypto & tasas use 2; monedas (FX) uses 4; default 2
   let d = a.d;
   if (d == null) {
-    if (bucket === 'FX') d = 4;
-    else if (bucket === 'Rates') d = 2;
+    if (bucket === 'Monedas') d = 4;
+    else if (bucket === 'Tasas') d = 2;
     else if (Math.abs(last) >= 1000) d = 0;
     else if (Math.abs(last) >= 100) d = 1;
     else d = 2;
   }
-  return { sym, name, last, chg, ytd, sp: sp || [], pct, d };
+  // Orden natural dentro de la categoría (ver MUNDO_ORDER). Items sin entry → 99.
+  const ord = MUNDO_ORDER[sym] != null ? MUNDO_ORDER[sym] : 99;
+  return { sym, name, last, chg, ytd, sp: sp || [], pct, d, ord };
 }
 
 // ─── Stubs (overridable per phase) ────────────────────────────
