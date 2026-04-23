@@ -1584,9 +1584,9 @@ ARS_SUBS.lecaps = async function(main) {
 
     function render() {
       $('#lec-scatter').innerHTML = scatterSVG(items, {
-        xKey: 'days', yKey: 'tem', labelKey: 'sym',
-        xLabel: 'dtm (días)', yLabel: 'tem',
-        yFmt: v => v.toFixed(2) + '%', xFmt: v => v + 'd',
+        xKey: 'days', yKey: 'tea', labelKey: 'sym',
+        xLabel: 'dtm (días)', yLabel: 'tea',
+        yFmt: v => v.toFixed(1) + '%', xFmt: v => v + 'd',
         selected: state.sel,
       });
       wireScatterClicks($('#lec-scatter'), (sym) => { state.sel = sym; render(); if (byId[sym]) openLecapCalc(byId[sym]); });
@@ -1599,8 +1599,8 @@ ARS_SUBS.lecaps = async function(main) {
             <td><span class="${s ? 'hot' : ''}">${esc(r.sym)}</span></td>
             <td class="num dim">${r.days}</td>
             <td class="num">${r.tem.toFixed(2)}%</td>
-            <td class="num hot">${r.tna.toFixed(1)}%</td>
-            <td class="num">${r.tea.toFixed(1)}%</td>
+            <td class="num">${r.tna.toFixed(1)}%</td>
+            <td class="num hot">${r.tea.toFixed(1)}%</td>
             <td class="num">${r.price.toFixed(2)}</td>
           </tr>`;
         }).join('')}</tbody></table>
